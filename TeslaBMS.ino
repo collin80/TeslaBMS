@@ -1,3 +1,5 @@
+#include <chip.h>
+
 #define REG_DEV_STATUS      0
 #define REG_GPAI            1
 #define REG_VCELL1          3
@@ -33,6 +35,28 @@ enum BOARD_STATUS
     BS_MISSING        //Nobody responded
 };
 
+void serialSpecialInit(Usart *pUsart, uint32_t baudRate)
+{
+  // Reset and disable receiver and transmitter
+  pUsart->US_CR = UART_CR_RSTRX | UART_CR_RSTTX | UART_CR_RXDIS | UART_CR_TXDIS;
+
+  // Configure mode
+  pUsart->US_MR =  US_MR_USART_MODE_NORMAL | US_MR_USCLKS_MCK | US_MR_CHMODE_NORMAL | US_MR_OVER; // | US_MR_INVDATA;
+
+  //Get the integer divisor that can provide the baud rate
+  int divisor = SystemCoreClock / baudRate;
+  int error1 = abs(baudRate - (SystemCoreClock / divisor)); //find out how close that is to the real baud
+  int error2 = abs(baudRate - (SystemCoreClock / (divisor + 1))); //see if bumping up one on the divisor makes it a better match
+
+  if (error2 < error1) divisor++;   //If bumping by one yielded a closer rate then use that instead
+
+  // Configure baudrate including the optional fractional divisor possible on USART
+  pUsart->US_BRGR = (divisor >> 3) | ((divisor & 7) << 16);
+
+  // Enable receiver and transmitter
+  pUsart->US_CR = UART_CR_RXEN | UART_CR_TXEN;
+}
+
 uint8_t genCRC(uint8_t *input, int lenInput)
 {
     uint8_t generator = 0x07;
@@ -61,8 +85,8 @@ uint8_t genCRC(uint8_t *input, int lenInput)
 void sendData(uint8_t *data, uint8_t dataLen, bool isWrite)
 {
     if (isWrite) data[0] = data[0] | 1;
-    Serial.write(data, dataLen);
-    if (isWrite) Serial.write(genCRC(data, dataLen));
+    Serial1.write(data, dataLen);
+    if (isWrite) Serial1.write(genCRC(data, dataLen));
 
     SerialUSB.print("Sending: ");
     for (int x = 0; x < dataLen; x++) {
@@ -72,7 +96,7 @@ void sendData(uint8_t *data, uint8_t dataLen, bool isWrite)
     SerialUSB.println(genCRC(data, dataLen), HEX);
 }
 
-int getReply(char *data)
+int getReply(uint8_t *data)
 {  
     int numBytes = 0; 
     SerialUSB.print("Reply: ");
@@ -104,7 +128,7 @@ void setupBoards()
     payload[2] = 0;  
     while (1 == 1)
     {
-        sendData(payload, 3);
+        sendData(payload, 3, false);
         delay(3);
         if (getReply(buff) > 2)
         {
@@ -193,7 +217,8 @@ bool getModuleVoltage(uint8_t address)
 void setup() 
 {
     delay(4000);
-    Serial.begin(612500);
+    Serial1.begin(612500);
+    //serialSpecialInit(USART0, 612500);
     SerialUSB.println("Fired up serial at 612500 baud!");
     for (int x = 0; x < 64; x++) boards[x] = BS_STARTUP;
     findBoards();
