@@ -47,7 +47,8 @@ enum BOARD_STATUS
     BS_MISSING        //Nobody responded
 };
 
-//This has to be selectively compiled just for the Due. Find the compile time define needed to determine this.
+//This code only applicable to Due to fixup lack of functionality in the arduino core.
+#if defined (__arm__) && defined (__SAM3X8E__)
 void serialSpecialInit(Usart *pUsart, uint32_t baudRate)
 {
   // Reset and disable receiver and transmitter
@@ -70,6 +71,7 @@ void serialSpecialInit(Usart *pUsart, uint32_t baudRate)
   // Enable receiver and transmitter
   pUsart->US_CR = UART_CR_RXEN | UART_CR_TXEN;
 }
+#endif
 
 uint8_t genCRC(uint8_t *input, int lenInput)
 {
@@ -250,7 +252,9 @@ void setup()
     SERIALCONSOLE.begin(115200);
     SERIALCONSOLE.println("Starting up!");
     SERIAL.begin(612500);
+#if defined (__arm__) && defined (__SAM3X8E__)
     serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
+#endif
     SERIALCONSOLE.println("Fired up serial at 612500 baud!");
     for (int x = 0; x < 64; x++) boards[x] = BS_STARTUP;
     findBoards();
