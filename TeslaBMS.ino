@@ -246,7 +246,7 @@ void setupBoards()
 }
 
 /*
- * Iterate through all 63 possible board addresses (1-63) to see if they respond
+ * Iterate through all 62 possible board addresses (1-62) to see if they respond
  */
 void findBoards()
 {
@@ -275,30 +275,21 @@ void findBoards()
     }
 }
 
+
+/*
+ * Force all modules to reset back to address 0 then set them all up in order so that the first module
+ * in line from the master board is 1, the second one 2, and so on.
+*/
 void renumber()
 {
   uint8_t payload[3];
   uint8_t buff[8];
-  while (actBoards != 0)
-  {
-    for (int x = 1; x <= MAX_MODULE_ADDR; x++)
-    {
-      if (boards[x] != BS_MISSING)
-      {
-        payload[0] = x << 1;
-        payload[1] = 0x3c;//reset
-        payload[2] = 0xa5;//data to cause a reset
-        sendData(payload, 3, true);
-        delay(2);
-      }
-      
-    }
-    findBoards();
-    SERIALCONSOLE.println();
-    SERIALCONSOLE.print(actBoards);
-  }
-  delay(10);
-  setupBoards();
+  payload[0] = 0x3F << 1; //broadcast the reset command
+  payload[1] = 0x3C;//reset
+  payload[2] = 0xA5;//data to cause a reset
+  sendData(payload, 3, true);
+  delay(20);
+  setupBoards();    //then assign them all consecutive addresses in order
 }
 
 
