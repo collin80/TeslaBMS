@@ -29,12 +29,14 @@
 //On the Due you need to use a USART port (SERIAL, Serial2, Serial3) and update the call to serialSpecialInit if not SERIAL
 #define SERIAL  Serial1
 
-float cellVolt[63][6];          // calculated as 16 bit value * 6.250 / 16383 = volts
-float moduleVolt[63];           // calculated as 16 bit value * 33.333 / 16383 = volts
+//There can be only 63 modules but 64 are allocated because the first valid module address is 1 not 0. This way you can
+//ignore the first entry in the array and store things 1-63 just like the bus addresses.
+float cellVolt[64][6];          // calculated as 16 bit value * 6.250 / 16383 = volts
+float moduleVolt[64];           // calculated as 16 bit value * 33.333 / 16383 = volts
 float packVolt;                 // All modules added together
-uint16_t temperatures[63][2];   // Storage for temperature readings
+uint16_t temperatures[64][2];   // Storage for temperature readings
 uint8_t serBuff[128];
-uint8_t boards[63];
+uint8_t boards[64];
 
 uint8_t actBoards = 0;     // Number of active boards/slaves
 
@@ -158,7 +160,7 @@ void setupBoards()
             {
                 if (decodeuart == 1) SERIALCONSOLE.println("00 found");
                 //look for a free address to use
-                for (int y = 0; y < 63; y++) 
+                for (int y = 1; y < 64; y++) 
                 {
                     if (boards[y] == BS_MISSING)
                     {
@@ -192,6 +194,9 @@ void findBoards()
 {
     uint8_t payload[3];
     uint8_t buff[8];
+
+    actBoards = 0;
+
     payload[1] = 0; //read registers starting at 0
     payload[2] = 1; //read one byte
     for (int x = 1; x < 64; x++) 
@@ -203,13 +208,41 @@ void findBoards()
         if (getReply(buff) > 4)
         {
             if (buff[0] == (x << 1) && buff[1] == 0 && buff[2] == 1 && buff[4] > 0) {
-                boards[x] = BS_FOUND;              
+                boards[x] = BS_FOUND;
+                actBoards++;              
                 SERIALCONSOLE.print("Found module with address: ");
                 SERIALCONSOLE.println(x, HEX);
             }
         }
     }
 }
+
+void renumber()
+{
+  uint8_t payload[3];
+  uint8_t buff[8];
+  while (actBoards != 0)
+  {
+    for (int x = 1; x < 64; x++)
+    {
+      if (boards[x] != BS_MISSING)
+      {
+        payload[0] = x << 1;
+        payload[1] = 0x3c;//reset
+        payload[2] = 0xa5;//data to cause a reset
+        sendData(payload, 3, true);
+        delay(2);
+      }
+      
+    }
+    findBoards();
+    SERIALCONSOLE.println();
+    SERIALCONSOLE.print(actBoards);
+  }
+  delay(10);
+  setupBoards();
+}
+
 
 bool getModuleVoltage(uint8_t address)
 {
@@ -256,18 +289,34 @@ void setup()
     serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
 #endif
     SERIALCONSOLE.println("Fired up serial at 612500 baud!");
-    for (int x = 0; x < 64; x++) boards[x] = BS_STARTUP;
+    for (int x = 1; x < 64; x++) boards[x] = BS_STARTUP;
     findBoards();
-    for (int x = 0; x < 64; x++) Serial.println(boards[x]);
+    for (int x = 1; x < 64; x++) Serial.println(boards[x]);
 }
 
 void loop() 
 {
+
+    if (SERIALCONSOLE.available()) 
+    {     // force renumber and read out
+        char y = SERIALCONSOLE.read();
+        switch (y)
+        {
+        case '1': //ascii 1
+            renumber();
+            break;
+        case '2': //ascii 2
+            SERIALCONSOLE.println();
+            findBoards();
+            break;
+        }
+    }    
+
     delay(500);
     getModuleVoltage(1);
     SERIALCONSOLE.println(moduleVolt[0]);
     SERIALCONSOLE.println();
-    for (int y = 0; y < 63; y++) 
+    for (int y = 1; y < 64; y++) 
     {
         if (boards[y] == BS_FOUND)
         {
