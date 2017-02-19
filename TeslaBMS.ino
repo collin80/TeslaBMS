@@ -38,6 +38,8 @@ uint16_t temperatures[64][2];   // Storage for temperature readings
 uint8_t serBuff[128];
 uint8_t boards[64];
 
+float balVolt = 3.01; // CHANGE - arbitrairy balance value set to balance on my pack
+
 uint8_t actBoards = 0;     // Number of active boards/slaves
 
 uint8_t decodeuart = 0;    // Transfer uart data to serial output
@@ -132,6 +134,61 @@ int getReply(uint8_t *data)
     if (decodeuart == 1) SERIALCONSOLE.println();
     return numBytes;
 }
+
+void cellBalance()
+{
+    uint8_t payload[4];
+    uint8_t buff[30];
+    uint8_t balance = 0;//bit 0 - 5 are to activate cell balancing 1-6
+  
+    for (int address = 1; address < 64; address++)
+    {
+        balance = 0;
+        for (int i = 0; i < 6; i++)
+        {
+            if (balVolt < cellVolt[address][i])
+            {
+                balance = balance | (1<<i);
+            }
+        }
+  
+        if (balance != 0) //only send balance command when needed
+        {
+            payload[0] = address << 1;
+            payload[1] = REG_BAL_TIME;
+            payload[2] = 0x05; //5 second balance limit, if not triggered to balance it will stop after 5 seconds
+            sendData(payload, 3, true);
+            delay(2);
+            getReply(buff);
+
+            payload[0] = address << 1;
+            payload[1] = REG_BAL_CTRL;
+            payload[2] = balance; //write balance state to register
+            sendData(payload, 3, true);
+            delay(2);
+            getReply(buff);
+
+            if (decodeuart == 1) //read registers back out to check if everthing is good
+            {
+                delay(50);
+                payload[0] = address << 1;
+                payload[1] = REG_BAL_TIME;
+                payload[2] = 1; //
+                sendData(payload, 3, false);
+                delay(2);
+                getReply(buff);
+         
+                payload[0] = address << 1;
+                payload[1] = REG_BAL_CTRL;
+                payload[2] = 1; //
+                sendData(payload, 3, false);
+                delay(2);
+                getReply(buff);
+            }
+        }
+    }
+}
+
 
 /*
  * Try to set up any unitialized boards. Send a command to address 0 and see if there is a response. If there is then there is
@@ -291,12 +348,11 @@ void setup()
     SERIALCONSOLE.println("Fired up serial at 612500 baud!");
     for (int x = 1; x < 64; x++) boards[x] = BS_STARTUP;
     findBoards();
-    for (int x = 1; x < 64; x++) Serial.println(boards[x]);
+    for (int x = 1; x < 64; x++) SERIALCONSOLE.println(boards[x]);
 }
 
 void loop() 
 {
-
     if (SERIALCONSOLE.available()) 
     {     // force renumber and read out
         char y = SERIALCONSOLE.read();
@@ -308,6 +364,11 @@ void loop()
         case '2': //ascii 2
             SERIALCONSOLE.println();
             findBoards();
+            break;
+        case '3': //activate cell balance for 5 seconds 
+            SERIALCONSOLE.println();
+            SERIALCONSOLE.println("Balancing");
+            cellBalance();
             break;
         }
     }    
@@ -321,23 +382,23 @@ void loop()
         if (boards[y] == BS_FOUND)
         {
             getModuleVoltage(y);
-            Serial.println();
-            Serial.print("Slave Address ");
-            Serial.println(y);
-            Serial.print("Module voltage: ");
-            Serial.println(moduleVolt[y-1]);
-            Serial.print("Cell voltages: ");
+            SERIALCONSOLE.println();
+            SERIALCONSOLE.print("Slave Address ");
+            SERIALCONSOLE.println(y);
+            SERIALCONSOLE.print("Module voltage: ");
+            SERIALCONSOLE.println(moduleVolt[y-1]);
+            SERIALCONSOLE.print("Cell voltages: ");
             for (int x = 0; x < 6; x++) 
             {
-              Serial.print(cellVolt[y-1][x]); 
-              Serial.print(", ");
+              SERIALCONSOLE.print(cellVolt[y-1][x]); 
+              SERIALCONSOLE.print(", ");
             }
-            Serial.println();
-            Serial.print("Temperatures : ");
-            Serial.print(temperatures[y-1][0]);
-            Serial.print(", ");
-            Serial.print(temperatures[y-1][1]);
-            Serial.println();           
+            SERIALCONSOLE.println();
+            SERIALCONSOLE.print("Temperatures : ");
+            SERIALCONSOLE.print(temperatures[y-1][0]);
+            SERIALCONSOLE.print(", ");
+            SERIALCONSOLE.print(temperatures[y-1][1]);
+            SERIALCONSOLE.println();           
         }
     } 
 }
