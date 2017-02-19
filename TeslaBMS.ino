@@ -21,6 +21,9 @@
 #define REG_ADC_CONV        0x34
 #define REG_ADDR_CTRL       0x3B
 
+//If you're using a Due and you want to use the programming port then uncomment this define
+#define SerialUSB Serial
+
 float cellVolt[63][6];          // calculated as 16 bit value * 6.250 / 16383 = volts
 float moduleVolt[63];           // calculated as 16 bit value * 33.333 / 16383 = volts
 float packVolt;                 // All modules added together
@@ -41,7 +44,8 @@ void serialSpecialInit(Usart *pUsart, uint32_t baudRate)
   pUsart->US_CR = UART_CR_RSTRX | UART_CR_RSTTX | UART_CR_RXDIS | UART_CR_TXDIS;
 
   // Configure mode
-  pUsart->US_MR =  US_MR_USART_MODE_NORMAL | US_MR_USCLKS_MCK | US_MR_CHMODE_NORMAL | US_MR_OVER; // | US_MR_INVDATA;
+  pUsart->US_MR =  US_MR_CHRL_8_BIT | US_MR_NBSTOP_1_BIT | UART_MR_PAR_NO | US_MR_USART_MODE_NORMAL | 
+                   US_MR_USCLKS_MCK | US_MR_CHMODE_NORMAL | US_MR_OVER; // | US_MR_INVDATA;
 
   //Get the integer divisor that can provide the baud rate
   int divisor = SystemCoreClock / baudRate;
@@ -221,8 +225,10 @@ bool getModuleVoltage(uint8_t address)
 void setup() 
 {
     delay(4000);
+    SerialUSB.begin(115200);
+    SerialUSB.println("Starting up!");
     Serial1.begin(612500);
-    //serialSpecialInit(USART0, 612500);
+    serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
     SerialUSB.println("Fired up serial at 612500 baud!");
     for (int x = 0; x < 64; x++) boards[x] = BS_STARTUP;
     findBoards();
