@@ -21,6 +21,7 @@
 #define REG_ADC_CONV        0x34
 #define REG_ADDR_CTRL       0x3B
 
+#define MAX_MODULE_ADDR     0x3E
 
 //Set to the proper port for your USB connection - SERIALCONSOLE on Due (Native) or Serial for Due (Programming) or Teensy
 #define SERIALCONSOLE   SerialUSB
@@ -29,14 +30,14 @@
 //On the Due you need to use a USART port (SERIAL, Serial2, Serial3) and update the call to serialSpecialInit if not SERIAL
 #define SERIAL  Serial1
 
-//There can be only 63 modules but 64 are allocated because the first valid module address is 1 not 0. This way you can
+//There can be only 62 modules but 63 are allocated because the first valid module address is 1 not 0. This way you can
 //ignore the first entry in the array and store things 1-63 just like the bus addresses.
-float cellVolt[64][6];          // calculated as 16 bit value * 6.250 / 16383 = volts
-float moduleVolt[64];           // calculated as 16 bit value * 33.333 / 16383 = volts
+float cellVolt[MAX_MODULE_ADDR + 1][6];     // calculated as 16 bit value * 6.250 / 16383 = volts
+float moduleVolt[MAX_MODULE_ADDR + 1];      // calculated as 16 bit value * 33.333 / 16383 = volts
 float packVolt;                 // All modules added together
-uint16_t temperatures[64][2];   // Storage for temperature readings
+uint16_t temperatures[MAX_MODULE_ADDR + 1][2];   // Storage for temperature readings
 uint8_t serBuff[128];
-uint8_t boards[64];
+uint8_t boards[MAX_MODULE_ADDR + 1];
 
 float balVolt = 3.01; // CHANGE - arbitrairy balance value set to balance on my pack
 
@@ -141,7 +142,7 @@ void cellBalance()
     uint8_t buff[30];
     uint8_t balance = 0;//bit 0 - 5 are to activate cell balancing 1-6
   
-    for (int address = 1; address < 64; address++)
+    for (int address = 1; address <= MAX_MODULE_ADDR; address++)
     {
         balance = 0;
         for (int i = 0; i < 6; i++)
@@ -256,7 +257,7 @@ void findBoards()
 
     payload[1] = 0; //read registers starting at 0
     payload[2] = 1; //read one byte
-    for (int x = 1; x < 64; x++) 
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++) 
     {
         boards[x] = BS_MISSING;
         payload[0] = x << 1;
@@ -280,7 +281,7 @@ void renumber()
   uint8_t buff[8];
   while (actBoards != 0)
   {
-    for (int x = 1; x < 64; x++)
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++)
     {
       if (boards[x] != BS_MISSING)
       {
@@ -305,7 +306,7 @@ bool getModuleVoltage(uint8_t address)
 {
     uint8_t payload[4];
     uint8_t buff[30];
-    if (address < 1 || address > 63) return false;
+    if (address < 1 || address > MAX_MODULE_ADDR) return false;
     payload[0] = address << 1;
     payload[1] = REG_ADC_CTRL;
     payload[2] = 0b00111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
@@ -346,9 +347,9 @@ void setup()
     serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
 #endif
     SERIALCONSOLE.println("Fired up serial at 612500 baud!");
-    for (int x = 1; x < 64; x++) boards[x] = BS_STARTUP;
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++) boards[x] = BS_STARTUP;
     findBoards();
-    for (int x = 1; x < 64; x++) SERIALCONSOLE.println(boards[x]);
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++) SERIALCONSOLE.println(boards[x]);
 }
 
 void loop() 
@@ -377,7 +378,7 @@ void loop()
     getModuleVoltage(1);
     SERIALCONSOLE.println(moduleVolt[0]);
     SERIALCONSOLE.println();
-    for (int y = 1; y < 64; y++) 
+    for (int y = 1; y <= MAX_MODULE_ADDR; y++) 
     {
         if (boards[y] == BS_FOUND)
         {
