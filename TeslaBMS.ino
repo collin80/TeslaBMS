@@ -21,8 +21,13 @@
 #define REG_ADC_CONV        0x34
 #define REG_ADDR_CTRL       0x3B
 
-//If you're using a Due and you want to use the programming port then uncomment this define
-#define SerialUSB Serial
+
+//Set to the proper port for your USB connection - SERIALCONSOLE on Due (Native) or Serial for Due (Programming) or Teensy
+#define SERIALCONSOLE   SerialUSB
+
+//Define this to be the serial port the Tesla BMS modules are connected to.
+//On the Due you need to use a USART port (SERIAL, Serial2, Serial3) and update the call to serialSpecialInit if not SERIAL
+#define SERIAL  Serial1
 
 float cellVolt[63][6];          // calculated as 16 bit value * 6.250 / 16383 = volts
 float moduleVolt[63];           // calculated as 16 bit value * 33.333 / 16383 = volts
@@ -31,6 +36,10 @@ uint16_t temperatures[63][2];   // Storage for temperature readings
 uint8_t serBuff[128];
 uint8_t boards[63];
 
+uint8_t actBoards = 0;     // Number of active boards/slaves
+
+uint8_t decodeuart = 0;    // Transfer uart data to serial output
+
 enum BOARD_STATUS 
 {
     BS_STARTUP,       //Haven't tried to find this ID yet
@@ -38,6 +47,7 @@ enum BOARD_STATUS
     BS_MISSING        //Nobody responded
 };
 
+//This has to be selectively compiled just for the Due. Find the compile time define needed to determine this.
 void serialSpecialInit(Usart *pUsart, uint32_t baudRate)
 {
   // Reset and disable receiver and transmitter
@@ -90,28 +100,32 @@ void sendData(uint8_t *data, uint8_t dataLen, bool isWrite)
 {
     uint8_t addrByte = data[0];
     if (isWrite) addrByte |= 1;
-    Serial1.write(data[0]);
-    Serial1.write(&data[1], dataLen - 1);  //assumes that there are at least 2 bytes sent every time. There should be, addr and cmd at the least.
-    if (isWrite) Serial1.write(genCRC(data, dataLen));
+    SERIAL.write(data[0]);
+    SERIAL.write(&data[1], dataLen - 1);  //assumes that there are at least 2 bytes sent every time. There should be, addr and cmd at the least.
+    if (isWrite) SERIAL.write(genCRC(data, dataLen));
 
-    SerialUSB.print("Sending: ");
-    for (int x = 0; x < dataLen; x++) {
-        SerialUSB.print(data[x], HEX);
-        SerialUSB.print(" ");
+    if (decodeuart == 1) 
+    {
+        SERIALCONSOLE.print("Sending: ");
+        for (int x = 0; x < dataLen; x++) {
+            SERIALCONSOLE.print(data[x], HEX);
+            SERIALCONSOLE.print(" ");
+        }
+        SERIALCONSOLE.println(genCRC(data, dataLen), HEX);
     }
-    SerialUSB.println(genCRC(data, dataLen), HEX);
 }
 
 int getReply(uint8_t *data)
 {  
     int numBytes = 0; 
-    SerialUSB.print("Reply: ");
-    while (Serial1.available())
+    if (decodeuart == 1) SERIALCONSOLE.print("Reply: ");
+    while (SERIAL.available())
     {
-        SerialUSB.print(Serial1.read(), HEX);
+        data[numBytes] = SERIAL.read();
+        if (decodeuart == 1) SERIALCONSOLE.print(data[numBytes], HEX);
         numBytes++;
     }
-    SerialUSB.println();
+    if (decodeuart == 1) SERIALCONSOLE.println();
     return numBytes;
 }
 
@@ -138,8 +152,9 @@ void setupBoards()
         delay(3);
         if (getReply(buff) > 2)
         {
-            if (buff[0] == 0x81 && buff[1] == 0 && buff[2] == 0)
+            if (buff[0] == 0x80 && buff[1] == 0 && buff[2] == 0)
             {
+                if (decodeuart == 1) SERIALCONSOLE.println("00 found");
                 //look for a free address to use
                 for (int y = 0; y < 63; y++) 
                 {
@@ -152,13 +167,18 @@ void setupBoards()
                         delay(3);
                         if (getReply(buff) > 2)
                         {
-                            if (buff[0] == (y << 1) && buff[1] == REG_ADDR_CTRL && buff[2] == (y | 0x80)) boards[y] = BS_FOUND; //Success!
+                            if (buff[0] == (y << 1) && buff[1] == REG_ADDR_CTRL && buff[2] == (y | 0x80)) 
+                            {
+                                boards[y] = BS_FOUND; //Success!
+                                actBoards++;
+                                if (decodeuart == 1) SERIALCONSOLE.println("Address assigned");
+                            }
                         }
                         break; //quit the for loop
                     }
                 }
             }
-            else return; //nobody responded properly to the zero address so our work here is done.
+            else break; //nobody responded properly to the zero address so our work here is done.
         }
     }
 }
@@ -180,9 +200,11 @@ void findBoards()
         delay(2);
         if (getReply(buff) > 4)
         {
-            if (buff[0] == (x << 1) && buff[1] == 0 && buff[2] == 1) boards[x] = BS_FOUND;
-            SerialUSB.print("Found module with address: ");
-            SerialUSB.println(x, HEX);
+            if (buff[0] == (x << 1) && buff[1] == 0 && buff[2] == 1 && buff[4] > 0) {
+                boards[x] = BS_FOUND;              
+                SERIALCONSOLE.print("Found module with address: ");
+                SERIALCONSOLE.println(x, HEX);
+            }
         }
     }
 }
@@ -225,25 +247,45 @@ bool getModuleVoltage(uint8_t address)
 void setup() 
 {
     delay(4000);
-    SerialUSB.begin(115200);
-    SerialUSB.println("Starting up!");
-    Serial1.begin(612500);
+    SERIALCONSOLE.begin(115200);
+    SERIALCONSOLE.println("Starting up!");
+    SERIAL.begin(612500);
     serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
-    SerialUSB.println("Fired up serial at 612500 baud!");
+    SERIALCONSOLE.println("Fired up serial at 612500 baud!");
     for (int x = 0; x < 64; x++) boards[x] = BS_STARTUP;
     findBoards();
+    for (int x = 0; x < 64; x++) Serial.println(boards[x]);
 }
 
 void loop() 
 {
-    uint8_t payload[8];
-    uint8_t buff[30];
-    payload[0] = 2;
-    payload[1] = 0x30;
-    payload[2] = 0b00111101;
-    sendData(payload, 3, true);
-    delay(3);
-    getReply(buff);
-    delay(200);
+    delay(500);
+    getModuleVoltage(1);
+    SERIALCONSOLE.println(moduleVolt[0]);
+    SERIALCONSOLE.println();
+    for (int y = 0; y < 63; y++) 
+    {
+        if (boards[y] == BS_FOUND)
+        {
+            getModuleVoltage(y);
+            Serial.println();
+            Serial.print("Slave Address ");
+            Serial.println(y);
+            Serial.print("Module voltage: ");
+            Serial.println(moduleVolt[y-1]);
+            Serial.print("Cell voltages: ");
+            for (int x = 0; x < 6; x++) 
+            {
+              Serial.print(cellVolt[y-1][x]); 
+              Serial.print(", ");
+            }
+            Serial.println();
+            Serial.print("Temperatures : ");
+            Serial.print(temperatures[y-1][0]);
+            Serial.print(", ");
+            Serial.print(temperatures[y-1][1]);
+            Serial.println();           
+        }
+    } 
 }
 
