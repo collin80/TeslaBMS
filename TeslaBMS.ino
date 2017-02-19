@@ -84,8 +84,10 @@ uint8_t genCRC(uint8_t *input, int lenInput)
 
 void sendData(uint8_t *data, uint8_t dataLen, bool isWrite)
 {
-    if (isWrite) data[0] = data[0] | 1;
-    Serial1.write(data, dataLen);
+    uint8_t addrByte = data[0];
+    if (isWrite) addrByte |= 1;
+    Serial1.write(data[0]);
+    Serial1.write(&data[1], dataLen - 1);  //assumes that there are at least 2 bytes sent every time. There should be, addr and cmd at the least.
     if (isWrite) Serial1.write(genCRC(data, dataLen));
 
     SerialUSB.print("Sending: ");
@@ -168,13 +170,15 @@ void findBoards()
     payload[2] = 1; //read one byte
     for (int x = 1; x < 64; x++) 
     {
+        boards[x] = BS_MISSING;
         payload[0] = x << 1;
         sendData(payload, 3, false);
         delay(2);
         if (getReply(buff) > 4)
         {
             if (buff[0] == (x << 1) && buff[1] == 0 && buff[2] == 1) boards[x] = BS_FOUND;
-            else boards[x] = BS_MISSING;
+            SerialUSB.print("Found module with address: ");
+            SerialUSB.println(x, HEX);
         }
     }
 }
@@ -189,19 +193,19 @@ bool getModuleVoltage(uint8_t address)
     payload[2] = 0b00111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
     sendData(payload, 3, true);
     delay(2);
-    getReply(buff);
+    getReply(buff);     //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
     payload[1] = REG_ADC_CONV;
     payload[2] = 1;
     sendData(payload, 3, true);
     delay(2);
-    getReply(buff);
-    payload[1] = REG_GPAI;
-    payload[2] = 0x12; 
+    getReply(buff);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
+    payload[1] = REG_GPAI; //start reading registers at the module voltage registers
+    payload[2] = 0x12; //read 18 bytes (Each value takes 2 - ModuleV, CellV1-6, Temp1, Temp2)
     sendData(payload, 3, false);
     delay(2);
-    if (getReply(buff) > 0x13)
+    if (getReply(buff) > 0x14)
     {
-        if (buff[0] == (address << 1) && buff[1] == REG_ADC_CTRL && buff[2] == 0x12)
+        if (buff[0] == (address << 1) && buff[1] == REG_GPAI && buff[2] == 0x12)
         {
             //payload is 2 bytes gpai, 2 bytes for each of 6 cell voltages, 2 bytes for each of two temperatures (18 bytes of data)
             moduleVolt[address - 1] = (buff[3] * 256 + buff[4]) * 0.002034609f;
