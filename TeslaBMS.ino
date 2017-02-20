@@ -1,4 +1,6 @@
+#if defined (__arm__) && defined (__SAM3X8E__)
 #include <chip.h>
+#endif
 
 #define REG_DEV_STATUS      0
 #define REG_GPAI            1
@@ -23,11 +25,11 @@
 
 #define MAX_MODULE_ADDR     0x3E
 
-//Set to the proper port for your USB connection - SERIALCONSOLE on Due (Native) or Serial for Due (Programming) or Teensy
+//Set to the proper port for your USB connection - SerialUSB on Due (Native) or Serial for Due (Programming) or Teensy
 #define SERIALCONSOLE   SerialUSB
 
 //Define this to be the serial port the Tesla BMS modules are connected to.
-//On the Due you need to use a USART port (SERIAL, Serial2, Serial3) and update the call to serialSpecialInit if not SERIAL
+//On the Due you need to use a USART port (Serial1, Serial2, Serial3) and update the call to serialSpecialInit if not Serial1
 #define SERIAL  Serial1
 
 //There can be only 62 modules but 63 are allocated because the first valid module address is 1 not 0. This way you can
@@ -43,7 +45,7 @@ float balVolt = 3.01; // CHANGE - arbitrairy balance value set to balance on my 
 
 uint8_t actBoards = 0;     // Number of active boards/slaves
 
-uint8_t decodeuart = 0;    // Transfer uart data to serial output
+uint8_t decodeuart = 1;    // Transfer uart data to serial output
 
 enum BOARD_STATUS 
 {
@@ -114,11 +116,14 @@ void sendData(uint8_t *data, uint8_t dataLen, bool isWrite)
     if (decodeuart == 1) 
     {
         SERIALCONSOLE.print("Sending: ");
-        for (int x = 0; x < dataLen; x++) {
+        SERIALCONSOLE.print(addrByte, HEX);
+        SERIALCONSOLE.print(" ");
+        for (int x = 1; x < dataLen; x++) {
             SERIALCONSOLE.print(data[x], HEX);
             SERIALCONSOLE.print(" ");
         }
-        SERIALCONSOLE.println(genCRC(data, dataLen), HEX);
+        if (isWrite) SERIALCONSOLE.print(genCRC(data, dataLen), HEX);
+        SERIALCONSOLE.println();
     }
 }
 
@@ -129,7 +134,10 @@ int getReply(uint8_t *data)
     while (SERIAL.available())
     {
         data[numBytes] = SERIAL.read();
-        if (decodeuart == 1) SERIALCONSOLE.print(data[numBytes], HEX);
+        if (decodeuart == 1) {
+            SERIALCONSOLE.print(data[numBytes], HEX);
+            SERIALCONSOLE.print(" ");
+        }
         numBytes++;
     }
     if (decodeuart == 1) SERIALCONSOLE.println();
@@ -255,6 +263,8 @@ void findBoards()
 
     actBoards = 0;
 
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++) boards[x] = BS_STARTUP;
+    
     payload[1] = 0; //read registers starting at 0
     payload[2] = 1; //read one byte
     for (int x = 1; x <= MAX_MODULE_ADDR; x++) 
@@ -296,7 +306,7 @@ void renumber()
 bool getModuleVoltage(uint8_t address)
 {
     uint8_t payload[4];
-    uint8_t buff[30];
+    uint8_t buff[130];
     if (address < 1 || address > MAX_MODULE_ADDR) return false;
     payload[0] = address << 1;
     payload[1] = REG_ADC_CTRL;
@@ -322,6 +332,7 @@ bool getModuleVoltage(uint8_t address)
             for (int i = 0; i < 6; i++) cellVolt[address - 1][i] = (buff[5 + (i * 2)] * 256 + buff[6 + (i * 2)]) * 0.000381493f;
             temperatures[address - 1][0] = (buff[17] * 256 + buff[18]);
             temperatures[address - 1][1] = (buff[19] * 256 + buff[20]);
+            if (decodeuart == 1) SERIALCONSOLE.println("Got voltage and temperature readings");
             return true;
         }        
     }
@@ -337,8 +348,7 @@ void setup()
 #if defined (__arm__) && defined (__SAM3X8E__)
     serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
 #endif
-    SERIALCONSOLE.println("Fired up serial at 612500 baud!");
-    for (int x = 1; x <= MAX_MODULE_ADDR; x++) boards[x] = BS_STARTUP;
+    SERIALCONSOLE.println("Fired up serial at 612500 baud!");    
     findBoards();
     for (int x = 1; x <= MAX_MODULE_ADDR; x++) SERIALCONSOLE.println(boards[x]);
 }
@@ -346,12 +356,12 @@ void setup()
 void loop() 
 {
     if (SERIALCONSOLE.available()) 
-    {     // force renumber and read out
+    {     
         char y = SERIALCONSOLE.read();
         switch (y)
         {
         case '1': //ascii 1
-            renumber();
+            renumber();  // force renumber and read out
             break;
         case '2': //ascii 2
             SERIALCONSOLE.println();
@@ -366,9 +376,6 @@ void loop()
     }    
 
     delay(500);
-    getModuleVoltage(1);
-    SERIALCONSOLE.println(moduleVolt[0]);
-    SERIALCONSOLE.println();
     for (int y = 1; y <= MAX_MODULE_ADDR; y++) 
     {
         if (boards[y] == BS_FOUND)
