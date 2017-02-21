@@ -109,7 +109,7 @@ void sendData(uint8_t *data, uint8_t dataLen, bool isWrite)
 {
     uint8_t addrByte = data[0];
     if (isWrite) addrByte |= 1;
-    SERIAL.write(data[0]);
+    SERIAL.write(addrByte);
     SERIAL.write(&data[1], dataLen - 1);  //assumes that there are at least 2 bytes sent every time. There should be, addr and cmd at the least.
     if (isWrite) SERIAL.write(genCRC(data, dataLen));
 
@@ -127,11 +127,11 @@ void sendData(uint8_t *data, uint8_t dataLen, bool isWrite)
     }
 }
 
-int getReply(uint8_t *data)
+int getReply(uint8_t *data, int maxLen)
 {  
     int numBytes = 0; 
     if (decodeuart == 1) SERIALCONSOLE.print("Reply: ");
-    while (SERIAL.available())
+    while (SERIAL.available() && numBytes < maxLen)
     {
         data[numBytes] = SERIAL.read();
         if (decodeuart == 1) {
@@ -139,6 +139,10 @@ int getReply(uint8_t *data)
             SERIALCONSOLE.print(" ");
         }
         numBytes++;
+    }
+    if (maxLen == numBytes)
+    {
+        while (SERIAL.available()) SERIAL.read();
     }
     if (decodeuart == 1) SERIALCONSOLE.println();
     return numBytes;
@@ -168,14 +172,14 @@ void cellBalance()
             payload[2] = 0x05; //5 second balance limit, if not triggered to balance it will stop after 5 seconds
             sendData(payload, 3, true);
             delay(2);
-            getReply(buff);
+            getReply(buff, 30);
 
             payload[0] = address << 1;
             payload[1] = REG_BAL_CTRL;
             payload[2] = balance; //write balance state to register
             sendData(payload, 3, true);
             delay(2);
-            getReply(buff);
+            getReply(buff, 30);
 
             if (decodeuart == 1) //read registers back out to check if everthing is good
             {
@@ -185,14 +189,14 @@ void cellBalance()
                 payload[2] = 1; //
                 sendData(payload, 3, false);
                 delay(2);
-                getReply(buff);
+                getReply(buff, 30);
          
                 payload[0] = address << 1;
                 payload[1] = REG_BAL_CTRL;
                 payload[2] = 1; //
                 sendData(payload, 3, false);
                 delay(2);
-                getReply(buff);
+                getReply(buff, 30);
             }
         }
     }
@@ -220,7 +224,7 @@ void setupBoards()
     {
         sendData(payload, 3, false);
         delay(3);
-        if (getReply(buff) > 2)
+        if (getReply(buff, 10) > 2)
         {
             if (buff[0] == 0x80 && buff[1] == 0 && buff[2] == 0)
             {
@@ -235,7 +239,7 @@ void setupBoards()
                         payload[2] = y | 0x80;
                         sendData(payload, 3, true);
                         delay(3);
-                        if (getReply(buff) > 2)
+                        if (getReply(buff, 10) > 2)
                         {
                             if (buff[0] == (y << 1) && buff[1] == REG_ADDR_CTRL && buff[2] == (y | 0x80)) 
                             {
@@ -273,7 +277,7 @@ void findBoards()
         payload[0] = x << 1;
         sendData(payload, 3, false);
         delay(2);
-        if (getReply(buff) > 4)
+        if (getReply(buff, 8) > 4)
         {
             if (buff[0] == (x << 1) && buff[1] == 0 && buff[2] == 1 && buff[4] > 0) {
                 boards[x] = BS_FOUND;
@@ -306,24 +310,24 @@ void renumber()
 bool getModuleVoltage(uint8_t address)
 {
     uint8_t payload[4];
-    uint8_t buff[130];
+    uint8_t buff[50];
     if (address < 1 || address > MAX_MODULE_ADDR) return false;
     payload[0] = address << 1;
     payload[1] = REG_ADC_CTRL;
     payload[2] = 0b00111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
     sendData(payload, 3, true);
     delay(2);
-    getReply(buff);     //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
+    getReply(buff, 50);     //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
     payload[1] = REG_ADC_CONV;
     payload[2] = 1;
     sendData(payload, 3, true);
     delay(2);
-    getReply(buff);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
+    getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
     payload[1] = REG_GPAI; //start reading registers at the module voltage registers
     payload[2] = 0x12; //read 18 bytes (Each value takes 2 - ModuleV, CellV1-6, Temp1, Temp2)
     sendData(payload, 3, false);
     delay(2);
-    if (getReply(buff) > 0x14)
+    if (getReply(buff, 50) > 0x14)
     {
         if (buff[0] == (address << 1) && buff[1] == REG_GPAI && buff[2] == 0x12)
         {
