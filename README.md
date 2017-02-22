@@ -15,5 +15,7 @@ of two sets of 5 differently colored wires:
 * Yellow = UART Wire
 * Blue = UART Wire
 
-The connector is 5 pins of two rows. Each row is such that it either goes
-up or down the stack. Each row has both a yellow and a blue wire.
+The fault output is active low. Use your own pull up to the fault line and if the line is pulled low then a fault has occurred.
+
+Here is a PDF that explains how the wiring between modules and the master board is supposed to be:
+https://cdn.hackaday.io/files/10098432032832/wiring.pdf
