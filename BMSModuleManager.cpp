@@ -246,6 +246,7 @@ void BMSModuleManager::wakeBoards()
 
 void BMSModuleManager::getAllVoltTemp()
 {
+    packVolt = 0.0f;
     for (int x = 1; x <= MAX_MODULE_ADDR; x++)
     {
         if (modules[x].isExisting()) 
@@ -254,6 +255,8 @@ void BMSModuleManager::getAllVoltTemp()
             modules[x].readModuleValues();
             Logger::debug("Module voltage: %f", modules[x].getModuleVoltage());
             Logger::debug("Lowest Cell V: %f     Highest Cell V: %f", modules[x].getLowCellV(), modules[x].getHighCellV());
+            Logger::debug("Temp1: %f       Temp2: %f", modules[x].getTemperature(0), modules[x].getTemperature(1));
+            packVolt += modules[x].getModuleVoltage();
         }
     }
 }

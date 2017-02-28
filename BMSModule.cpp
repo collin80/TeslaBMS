@@ -65,8 +65,8 @@ bool BMSModule::readModuleValues()
             //payload is 2 bytes gpai, 2 bytes for each of 6 cell voltages, 2 bytes for each of two temperatures (18 bytes of data)
             moduleVolt = (buff[3] * 256 + buff[4]) * 0.002034609f;
             for (int i = 0; i < 6; i++) cellVolt[i] = (buff[5 + (i * 2)] * 256 + buff[6 + (i * 2)]) * 0.000381493f;
-            temperatures[0] = (buff[17] * 256 + buff[18]);
-            temperatures[1] = (buff[19] * 256 + buff[20]);
+            temperatures[0] = (buff[17] * 256 + buff[18] + 2) / 33046.0f;
+            temperatures[1] = (buff[19] * 256 + buff[20] + 9) / 33068.0f;
             Logger::debug("Got voltage and temperature readings");
             return true;
         }        

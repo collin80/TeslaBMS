@@ -208,7 +208,7 @@ void Logger::logMessage(char *format, va_list args) {
                 continue;
             }
             if (*format == 'f') {
-                SERIALCONSOLE.print(va_arg( args, double ), 2);
+                SERIALCONSOLE.print(va_arg( args, double ), 4);
                 continue;
             }
             if (*format == 'x') {
