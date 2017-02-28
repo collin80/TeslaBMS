@@ -5,6 +5,7 @@
 class BMSModuleManager
 {
 public:
+    BMSModuleManager();
     void balanceCells();
     void setupBoards();
     void findBoards();
@@ -12,6 +13,7 @@ public:
     void clearFaults();
     void sleepBoards();
     void wakeBoards();
+    void getAllVoltTemp();
     void readSetpoints();
     void setUnderVolt(float newVal);
     void setOverVolt(float newVal);
@@ -27,6 +29,6 @@ private:
     float Tset;                     // Temperature setpoint
     float balVolt = 4.01f;          // Voltage where balancing should start
     float balHyst = 0.04f;          // Amount cell voltage must be different from setpoint to turn it back off
-    BMSModule modules[MAX_MODULES]; // store data for as many modules as we've configured for.
+    BMSModule modules[MAX_MODULE_ADDR]; // store data for as many modules as we've configured for.
     int numFoundModules;            // The number of modules that seem to exist
 };

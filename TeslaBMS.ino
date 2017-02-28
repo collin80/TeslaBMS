@@ -7,6 +7,8 @@
 #include "SerialConsole.h"
 #include "BMSModuleManager.h"
 
+BMSModuleManager bms;
+
 
 //This code only applicable to Due to fixup lack of functionality in the arduino core.
 #if defined (__arm__) && defined (__SAM3X8E__)
@@ -44,12 +46,14 @@ void setup()
     serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
 #endif
 
-    SERIALCONSOLE.println("Started serial interface to BMS.");    
-    //findBoards();
+    SERIALCONSOLE.println("Started serial interface to BMS.");
+    Logger::setLoglevel(Logger::Debug);
+    bms.findBoards();
 }
 
 void loop() 
 {
-
+    delay(1000);
+    bms.getAllVoltTemp();
 }
 

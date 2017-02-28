@@ -32,8 +32,6 @@
 
 #define MAX_MODULE_ADDR     0x3E
 
-#define MAX_MODULES         62
-
 typedef struct {
     uint8_t version;
     uint32_t canSpeed;

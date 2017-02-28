@@ -1,12 +1,5 @@
 #pragma once
 
-enum BOARD_STATUS 
-{
-    BS_STARTUP,       //Haven't tried to find this ID yet
-    BS_FOUND,         //Something responded to the ID
-    BS_MISSING        //Nobody responded
-};
-
 class BMSModule
 {
 public:

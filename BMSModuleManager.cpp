@@ -3,6 +3,14 @@
 #include "BMSUtil.h"
 #include "Logger.h"
 
+BMSModuleManager::BMSModuleManager()
+{
+    for (int i = 1; i <= MAX_MODULE_ADDR; i++) {
+        modules[i].setExists(false);
+        modules[i].setAddress(i);
+    }
+}
+
 void BMSModuleManager::balanceCells()
 {
     uint8_t payload[4];
@@ -84,9 +92,9 @@ void BMSModuleManager::setupBoards()
             {
                 Logger::debug("00 found");
                 //look for a free address to use
-                for (int y = 1; y < 64; y++) 
+                for (int y = 1; y < 63; y++) 
                 {
-                    if (!modules[y-1].isExisting())
+                    if (!modules[y].isExisting())
                     {
                         payload[0] = 0;
                         payload[1] = REG_ADDR_CTRL;
@@ -234,5 +242,19 @@ void BMSModuleManager::wakeBoards()
   BMSUtil::sendData(payload, 3, true);
   delay(2);
   BMSUtil::getReply(buff, 8);
+}
+
+void BMSModuleManager::getAllVoltTemp()
+{
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++)
+    {
+        if (modules[x].isExisting()) 
+        {
+            Logger::debug("Module %i exists. Reading voltage and temperature values", x);
+            modules[x].readModuleValues();
+            Logger::debug("Module voltage: %f", modules[x].getModuleVoltage());
+            Logger::debug("Lowest Cell V: %f     Highest Cell V: %f", modules[x].getLowCellV(), modules[x].getHighCellV());
+        }
+    }
 }
 
