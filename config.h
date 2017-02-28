@@ -32,8 +32,18 @@
 
 #define MAX_MODULE_ADDR     0x3E
 
+#define EEPROM_VERSION      0x10    //update any time EEPROM struct below is changed.
+#define EEPROM_PAGE         0
+
 typedef struct {
     uint8_t version;
-    uint32_t canSpeed;
     uint8_t checksum;
+    uint32_t canSpeed;
+    uint8_t logLevel;
+    float OverVSetpoint;
+    float UnderVSetpoint;
+    float OverTSetpoint;
+    float UnderTSetpoint;
+    float balanceVoltage;
+    float balanceHyst;
 } EEPROMSettings;

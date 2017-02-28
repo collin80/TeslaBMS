@@ -6,9 +6,16 @@
 #include "Logger.h"
 #include "SerialConsole.h"
 #include "BMSModuleManager.h"
+#include <due_can.h>
+#include <due_wire.h>
+#include <Wire_EEPROM.h>
 
 BMSModuleManager bms;
+EEPROMSettings settings;
+SerialConsole console;
+uint32_t lastUpdate;
 
+//At 69F/20.5C the ratio is 0.1356
 
 //This code only applicable to Due to fixup lack of functionality in the arduino core.
 #if defined (__arm__) && defined (__SAM3X8E__)
@@ -36,6 +43,37 @@ void serialSpecialInit(Usart *pUsart, uint32_t baudRate)
 }
 #endif
 
+void loadSettings()
+{
+    EEPROM.read(EEPROM_PAGE, settings);
+
+    if (settings.version != EEPROM_VERSION) //if settings are not the current version then erase them and set defaults
+    {
+        Logger::console("Resetting to factory defaults");
+        settings.version = EEPROM_VERSION;
+        settings.checksum = 0;
+        settings.canSpeed = 500000;
+        settings.OverVSetpoint = 4.1f;
+        settings.UnderVSetpoint = 2.3f;
+        settings.OverTSetpoint = 65.0f;
+        settings.UnderTSetpoint = -10.0f;
+        settings.balanceVoltage = 3.9f;
+        settings.balanceHyst = 0.04f;
+        settings.logLevel = 2;
+        EEPROM.write(EEPROM_PAGE, settings);
+    }
+    else {
+        Logger::console("Using stored values from EEPROM");
+    }
+        
+    Logger::setLoglevel((Logger::LogLevel)settings.logLevel);
+}
+
+void initializeCAN()
+{
+    Can0.begin(settings.canSpeed);
+}
+
 void setup() 
 {
     delay(4000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
@@ -47,13 +85,25 @@ void setup()
 #endif
 
     SERIALCONSOLE.println("Started serial interface to BMS.");
-    Logger::setLoglevel(Logger::Debug);
+    
+    loadSettings();
+    initializeCAN();
+    
     bms.findBoards();
+    
+    Logger::setLoglevel(Logger::Debug);
+    
+    lastUpdate = 0;
 }
 
 void loop() 
-{
-    delay(1000);
-    bms.getAllVoltTemp();
+{    
+    console.loop();
+        
+    if (millis() > (lastUpdate + 1000))
+    {    
+        lastUpdate = millis();
+        bms.getAllVoltTemp();
+    }
 }
 

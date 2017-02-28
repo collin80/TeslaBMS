@@ -3,6 +3,8 @@
 #include "BMSUtil.h"
 #include "Logger.h"
 
+extern EEPROMSettings settings;
+
 BMSModuleManager::BMSModuleManager()
 {
     for (int i = 1; i <= MAX_MODULE_ADDR; i++) {
@@ -22,7 +24,7 @@ void BMSModuleManager::balanceCells()
         balance = 0;
         for (int i = 0; i < 6; i++)
         {
-            if (balVolt < modules[address].getCellVoltage(i))
+            if (settings.balanceVoltage < modules[address].getCellVoltage(i))
             {
                 balance = balance | (1<<i);
             }

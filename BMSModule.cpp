@@ -43,17 +43,27 @@ bool BMSModule::readModuleValues()
 {
     uint8_t payload[4];
     uint8_t buff[50];
+    bool retVal = false;
+    
     payload[0] = moduleAddress << 1;
     payload[1] = REG_ADC_CTRL;
     payload[2] = 0b00111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
     BMSUtil::sendData(payload, 3, true);
     delay(2);
     BMSUtil::getReply(buff, 50);     //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
+ 
+    payload[1] = REG_IO_CTRL;
+    payload[2] = 0b00000011; //enable temperature measurement VSS pins
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);        
+    BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
+        
     payload[1] = REG_ADC_CONV;
     payload[2] = 1;
     BMSUtil::sendData(payload, 3, true);
-    delay(2);
+    delay(2);        
     BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
+            
     payload[1] = REG_GPAI; //start reading registers at the module voltage registers
     payload[2] = 0x12; //read 18 bytes (Each value takes 2 - ModuleV, CellV1-6, Temp1, Temp2)
     BMSUtil::sendData(payload, 3, false);
@@ -68,10 +78,17 @@ bool BMSModule::readModuleValues()
             temperatures[0] = (buff[17] * 256 + buff[18] + 2) / 33046.0f;
             temperatures[1] = (buff[19] * 256 + buff[20] + 9) / 33068.0f;
             Logger::debug("Got voltage and temperature readings");
-            return true;
+            retVal = true;
         }        
-    }
-    return false;
+    }            
+    
+    payload[1] = REG_IO_CTRL;
+    payload[2] = 0b00000000; //turn off temperature measurement pins
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);        
+    BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back    
+    
+    return retVal;
 }
 
 float BMSModule::getCellVoltage(int cell)

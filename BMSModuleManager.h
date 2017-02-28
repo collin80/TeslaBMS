@@ -23,12 +23,7 @@ public:
     float getPackVoltage();
 
 private:
-    float packVolt;                 // All modules added together
-    float OVolt;                    // Overvoltage setpoint
-    float UVolt;                    // Undervoltage setpoint
-    float Tset;                     // Temperature setpoint
-    float balVolt = 4.01f;          // Voltage where balancing should start
-    float balHyst = 0.04f;          // Amount cell voltage must be different from setpoint to turn it back off
+    float packVolt;                         // All modules added together
     BMSModule modules[MAX_MODULE_ADDR + 1]; // store data for as many modules as we've configured for.
-    int numFoundModules;            // The number of modules that seem to exist
+    int numFoundModules;                    // The number of modules that seem to exist
 };

@@ -26,7 +26,12 @@
 
 #include "SerialConsole.h"
 #include "Logger.h"
+#include "BMSModuleManager.h"
+
 template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg); return obj; } //Lets us stream SerialUSB
+
+extern EEPROMSettings settings;
+extern BMSModuleManager bms;
 
 SerialConsole::SerialConsole() {
     init();
@@ -45,7 +50,7 @@ void SerialConsole::loop() {
         serialEvent();
     }
 }
-
+              
 void SerialConsole::printMenu() {   
     Logger::console("\n*************SYSTEM MENU *****************");
     Logger::console("Enable line endings of some sort (LF, CR, CRLF)");
@@ -53,21 +58,23 @@ void SerialConsole::printMenu() {
     Logger::console("GENERAL SYSTEM CONFIGURATION\n");
     Logger::console("   E = dump system EEPROM values");
     Logger::console("   h = help (displays this message)");
+    Logger::console("   S = Sleep all boards");
+    Logger::console("   W = Wake up all boards");
+    Logger::console("   C = Clear all board faults");
+    Logger::console("   F = Find all connected boards");
+    Logger::console("   R = Renumber connected boards in sequence");
+    Logger::console("   B = Attempt balancing for 5 seconds");
   
     Logger::console("   LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", Logger::getLogLevel());
-    //Logger::console("   CANSPEED=%i - set first CAN bus speed (in thousands)", canHandlerEv.getBusSpeed() / 1000);
-
-    /*
+    Logger::console("   CANSPEED=%i - set first CAN bus speed", settings.canSpeed);
+    
     Logger::console("\nBATTERY MANAGEMENT CONTROLS\n");
-    Logger::console("   CAPACITY=%i - Capacity of battery pack in tenths ampere-hours", config->packCapacity);
-    Logger::console("   AHLEFT=%i - Number of amp hours remaining in pack in tenths ampere-hours", config->packAHRemaining / 100000);
-    Logger::console("   VOLTLIMHI=%i - High limit for pack voltage in tenths of a volt", config->highVoltLimit);
-    Logger::console("   VOLTLIMLO=%i - Low limit for pack voltage in tenths of a volt", config->lowVoltLimit);
-    Logger::console("   CELLLIMHI=%i - High limit for cell voltage in hundredths of a volt", config->highCellLimit);
-    Logger::console("   CELLLIMLO=%i - Low limit for cell voltage in hundredths of a volt", config->lowCellLimit);
-    Logger::console("   TEMPLIMHI=%i - High limit for pack and cell temperature in tenths of a degree C", config->highTempLimit);
-    Logger::console("   TEMPLIMLO=%i - Low limit for pack and cell temperature in tenths of a degree C", config->lowTempLimit);
-    */
+    Logger::console("   VOLTLIMHI=%f - High limit for cells in volts", settings.OverVSetpoint);
+    Logger::console("   VOLTLIMLO=%f - Low limit for cells in volts", settings.UnderVSetpoint);
+    Logger::console("   TEMPLIMHI=%f - High limit for cell temperature in degrees C", settings.OverTSetpoint);
+    Logger::console("   TEMPLIMLO=%f - Low limit for cell temperature in degrees C", settings.UnderTSetpoint);
+    Logger::console("   BALVOLT=%f - Voltage at which to begin cell balancing", settings.balanceVoltage);
+    Logger::console("   BALHYST=%f - Voltage difference between highest and lowest cell that will cause balancing", settings.balanceHyst);
 }
 
 /*	There is a help menu (press H or h or ?)
@@ -132,56 +139,42 @@ void SerialConsole::handleConfigCmd() {
     newValue = strtol((char *) (cmdBuffer + i), NULL, 0);
 
     cmdString.toUpperCase();
-    /*
-    if (cmdString == String("CAN0SPEED")) {
-        if (newValue >= 33 && newValue <= 1000) {
-            sysPrefs->write(EESYS_CAN0_BAUD, (uint16_t)(newValue));
-            sysPrefs->saveChecksum();
-            canHandlerEv.setup();
-            Logger::console("Setting CAN0 speed to %i", newValue);
+    
+    if (cmdString == String("CANSPEED")) {
+        if (newValue >= 33000 && newValue <= 1000000) {
+            settings.canSpeed = newValue;
+            Logger::console("Setting CAN speed to %i", newValue);
         }
-        else Logger::console("Invalid speed. Enter a value between 33 and 1000");
+        else Logger::console("Invalid speed. Enter a value between 33000 and 1000000");
     } else if (cmdString == String("LOGLEVEL")) {
         switch (newValue) {
         case 0:
             Logger::setLoglevel(Logger::Debug);
+            settings.logLevel = 0;
             Logger::console("setting loglevel to 'debug'");
             break;
         case 1:
             Logger::setLoglevel(Logger::Info);
+            settings.logLevel = 1;
             Logger::console("setting loglevel to 'info'");
             break;
         case 2:
             Logger::console("setting loglevel to 'warning'");
+            settings.logLevel = 2;
             Logger::setLoglevel(Logger::Warn);
             break;
         case 3:
             Logger::console("setting loglevel to 'error'");
+            settings.logLevel = 3;
             Logger::setLoglevel(Logger::Error);
             break;
         case 4:
             Logger::console("setting loglevel to 'off'");
+            settings.logLevel = 4;
             Logger::setLoglevel(Logger::Off);
             break;
-        }
-        if (!sysPrefs->write(EESYS_LOG_LEVEL, (uint8_t)newValue))
-            Logger::error("Couldn't write log level!");
-        sysPrefs->saveChecksum();   
-    } else if (cmdString == String("CAPACITY") && bmsConfig ) {
-        if (newValue >= 0 && newValue <= 6000) {
-            bmsConfig->packCapacity = newValue;
-            bms->saveConfiguration();
-            Logger::console("Battery Pack Capacity set to: %d", bmsConfig->packCapacity);
-        }
-        else Logger::console("Invalid capacity please enter a value between 0 and 6000");
-    } else if (cmdString == String("AHLEFT") && bmsConfig ) {
-        if (newValue >= 0 && newValue <= 6000) {
-            bmsConfig->packAHRemaining = newValue * 100000ul;
-            bms->saveConfiguration();
-            Logger::console("Battery Pack remaining capacity set to: %d", newValue);
-        }
-        else Logger::console("Invalid remaining capacity please enter a value between 0 and 6000");
-    } else if (cmdString == String("VOLTLIMHI") && bmsConfig ) {
+        } 
+    } /*else if (cmdString == String("VOLTLIMHI") && bmsConfig ) {
         if (newValue >= 0 && newValue <= 6000) {
             bmsConfig->highVoltLimit = newValue;
             bms->saveConfiguration();
@@ -237,10 +230,28 @@ void SerialConsole::handleShortCmd() {
     case '?':
     case 'H':
         printMenu();
-        break;  
-    case 'X':
-        setup(); //this is probably a bad idea. Do not do this while connected to anything you care about - only for debugging in safety!
         break;
+    case 'S':
+        Logger::console("Sleeping all connected boards");
+        bms.sleepBoards();
+        break;
+    case 'W':
+        Logger::console("Waking up all connected boards");
+        bms.wakeBoards();
+        break;
+    case 'C':
+        Logger::console("Clearing all faults");
+        bms.clearFaults();
+        break;
+    case 'F':
+        bms.findBoards();
+        break;
+    case 'R':
+        bms.renumberBoardIDs();
+        break;
+    case 'B':
+        bms.balanceCells();
+        break;    
     }
 }
 
