@@ -263,3 +263,120 @@ void BMSModuleManager::getAllVoltTemp()
     }
 }
 
+float BMSModuleManager::getPackVoltage()
+{
+    return packVolt;
+}
+
+void BMSModuleManager::setBatteryID(int id)
+{
+    batteryID = id;
+}
+
+float BMSModuleManager::getAvgTemperature()
+{
+    float avg = 0.0f;    
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++)
+    {
+        if (modules[x].isExisting()) avg += modules[x].getAvgTemp();
+    }
+    avg = avg / (float)numFoundModules;
+    
+    return avg;
+}
+
+void BMSModuleManager::processCANMsg(CAN_FRAME &frame)
+{
+    uint8_t battId = (frame.id >> 16) & 0xF;
+    uint8_t moduleId = (frame.id >> 8) & 0xFF;
+    uint8_t cellId = (frame.id) & 0xFF;
+    
+    if (moduleId = 0xFF)  //every module
+    {
+        if (cellId == 0xFF) sendBatterySummary();        
+        else 
+        {
+            for (int i = 1; i <= MAX_MODULE_ADDR; i++) 
+            {
+                if (modules[i].isExisting()) sendCellDetails(i, cellId);
+            }
+        }
+    }
+    else //a specific module
+    {
+        if (cellId == 0xFF) sendModuleSummary(moduleId);
+        else sendCellDetails(moduleId, cellId);
+    }
+}
+
+void BMSModuleManager::sendBatterySummary()
+{
+    CAN_FRAME outgoing;
+    outgoing.id = (0x1BA00000ul) + batteryID << 16 + 0xFFFF;
+    outgoing.rtr = 0;
+    outgoing.priority = 1;
+    outgoing.extended = true;
+    outgoing.length = 8;
+
+    uint16_t battV = uint16_t(getPackVoltage() * 100.0f);
+    outgoing.data.byte[0] = battV & 0xFF;
+    outgoing.data.byte[1] = battV >> 8;
+    outgoing.data.byte[2] = 0;  //instantaneous current. Not measured at this point
+    outgoing.data.byte[3] = 0;
+    outgoing.data.byte[4] = 50; //state of charge
+    int avgTemp = (int)getAvgTemperature() + 40;
+    if (avgTemp < 0) avgTemp = 0;
+    outgoing.data.byte[5] = avgTemp;
+    outgoing.data.byte[6] = 0; //lowest temperate recorded so far
+    outgoing.data.byte[7] = 0; //highest temperature recorded so far
+    Can0.sendFrame(outgoing);
+}
+
+void BMSModuleManager::sendModuleSummary(int module)
+{
+    CAN_FRAME outgoing;
+    outgoing.id = (0x1BA00000ul) + batteryID << 16 + 0xFFFF;
+    outgoing.rtr = 0;
+    outgoing.priority = 1;
+    outgoing.extended = true;
+    outgoing.length = 8;
+
+    uint16_t battV = uint16_t(modules[module].getModuleVoltage() * 100.0f);
+    outgoing.data.byte[0] = battV & 0xFF;
+    outgoing.data.byte[1] = battV >> 8;
+    outgoing.data.byte[2] = 0;  //instantaneous current. Not measured at this point
+    outgoing.data.byte[3] = 0;
+    outgoing.data.byte[4] = 50; //state of charge
+    int avgTemp = (int)modules[module].getAvgTemp() + 40;
+    if (avgTemp < 0) avgTemp = 0;
+    outgoing.data.byte[5] = avgTemp;
+    outgoing.data.byte[6] = 0; //lowest temperate recorded so far
+    outgoing.data.byte[7] = 0; //highest temperature recorded so far
+
+    Can0.sendFrame(outgoing);    
+}
+
+void BMSModuleManager::sendCellDetails(int module, int cell)
+{
+    CAN_FRAME outgoing;
+    outgoing.id = (0x1BA00000ul) + batteryID << 16 + 0xFFFF;
+    outgoing.rtr = 0;
+    outgoing.priority = 1;
+    outgoing.extended = true;
+    outgoing.length = 8;
+    
+    uint16_t battV = uint16_t(modules[module].getCellVoltage(cell) * 100.0f);
+    outgoing.data.byte[0] = battV & 0xFF;
+    outgoing.data.byte[1] = battV >> 8;
+    battV = uint16_t(modules[module].getHighCellV() * 100.0f);
+    outgoing.data.byte[2] = battV & 0xFF; //should be highest this cell has gotten so far not highest cell
+    outgoing.data.byte[3] = battV >> 8;
+    battV = uint16_t(modules[module].getLowCellV() * 100.0f);
+    outgoing.data.byte[4] = battV & 0xFF; //should be lowest this cell has gotten so far not lowest cell
+    outgoing.data.byte[5] = battV >> 8;
+    int instTemp = modules[module].getHighTemp() + 40;
+    outgoing.data.byte[6] = instTemp; // should be nearest temperature reading not highest but this works too.
+    outgoing.data.byte[7] = 0; //Bit encoded fault data. No definitions for this yet.
+    
+    Can0.sendFrame(outgoing);
+}

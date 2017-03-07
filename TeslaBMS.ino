@@ -53,6 +53,7 @@ void loadSettings()
         settings.version = EEPROM_VERSION;
         settings.checksum = 0;
         settings.canSpeed = 500000;
+        settings.batteryID = 0xFF;
         settings.OverVSetpoint = 4.1f;
         settings.UnderVSetpoint = 2.3f;
         settings.OverTSetpoint = 65.0f;
@@ -71,7 +72,17 @@ void loadSettings()
 
 void initializeCAN()
 {
+    uint32_t id;
     Can0.begin(settings.canSpeed);
+    if (settings.batteryID < 0xF)
+    {
+        //Setup filter for direct access to our registered battery ID
+        id = (0xBAul << 20) + (((uint32_t)settings.batteryID & 0xF) << 16);
+        Can0.setRXFilter(0, id, 0x1FFF0000ul, true);
+        //Setup filter for request for all batteries to give summary data
+        id = (0xBAul << 20) + (0xFul << 16);
+        Can0.setRXFilter(1, id, 0x1FFF0000ul, true);
+    }
 }
 
 void setup() 
@@ -98,12 +109,19 @@ void setup()
 
 void loop() 
 {    
+    CAN_FRAME incoming;
+    
     console.loop();
         
     if (millis() > (lastUpdate + 1000))
     {    
         lastUpdate = millis();
         bms.getAllVoltTemp();
+    }
+    
+    if (Can0.available()) {
+        Can0.read(incoming);
+        bms.processCANMsg(incoming);
     }
 }
 
