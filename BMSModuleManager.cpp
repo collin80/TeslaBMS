@@ -11,6 +11,11 @@ BMSModuleManager::BMSModuleManager()
         modules[i].setExists(false);
         modules[i].setAddress(i);
     }
+    lowestPackVolt = 1000.0f;
+    highestPackVolt = 0.0f;
+    lowestPackTemp = 200.0f;
+    highestPackTemp = -100.0f;
+
 }
 
 void BMSModuleManager::balanceCells()
@@ -259,8 +264,13 @@ void BMSModuleManager::getAllVoltTemp()
             Logger::debug("Lowest Cell V: %f     Highest Cell V: %f", modules[x].getLowCellV(), modules[x].getHighCellV());
             Logger::debug("Temp1: %f       Temp2: %f", modules[x].getTemperature(0), modules[x].getTemperature(1));
             packVolt += modules[x].getModuleVoltage();
+            if (modules[x].getLowTemp() < lowestPackTemp) lowestPackTemp = modules[x].getLowTemp();
+            if (modules[x].getHighTemp() > highestPackTemp) highestPackTemp = modules[x].getHighTemp();            
         }
     }
+    
+    if (packVolt > highestPackVolt) highestPackVolt = packVolt;
+    if (packVolt < lowestPackVolt) lowestPackVolt = packVolt;    
 }
 
 float BMSModuleManager::getPackVoltage()
@@ -327,8 +337,12 @@ void BMSModuleManager::sendBatterySummary()
     int avgTemp = (int)getAvgTemperature() + 40;
     if (avgTemp < 0) avgTemp = 0;
     outgoing.data.byte[5] = avgTemp;
-    outgoing.data.byte[6] = 0; //lowest temperate recorded so far
-    outgoing.data.byte[7] = 0; //highest temperature recorded so far
+    avgTemp = (int)lowestPackTemp + 40;
+    if (avgTemp < 0) avgTemp = 0;    
+    outgoing.data.byte[6] = avgTemp;
+    avgTemp = (int)highestPackTemp + 40;
+    if (avgTemp < 0) avgTemp = 0;        
+    outgoing.data.byte[7] = avgTemp;
     Can0.sendFrame(outgoing);
 }
 
@@ -350,8 +364,12 @@ void BMSModuleManager::sendModuleSummary(int module)
     int avgTemp = (int)modules[module].getAvgTemp() + 40;
     if (avgTemp < 0) avgTemp = 0;
     outgoing.data.byte[5] = avgTemp;
-    outgoing.data.byte[6] = 0; //lowest temperate recorded so far
-    outgoing.data.byte[7] = 0; //highest temperature recorded so far
+    avgTemp = (int)modules[module].getLowestTemp() + 40;
+    if (avgTemp < 0) avgTemp = 0;
+    outgoing.data.byte[6] = avgTemp;
+    avgTemp = (int)modules[module].getHighestTemp() + 40;
+    if (avgTemp < 0) avgTemp = 0;    
+    outgoing.data.byte[7] = avgTemp;
 
     Can0.sendFrame(outgoing);    
 }
@@ -368,11 +386,11 @@ void BMSModuleManager::sendCellDetails(int module, int cell)
     uint16_t battV = uint16_t(modules[module].getCellVoltage(cell) * 100.0f);
     outgoing.data.byte[0] = battV & 0xFF;
     outgoing.data.byte[1] = battV >> 8;
-    battV = uint16_t(modules[module].getHighCellV() * 100.0f);
-    outgoing.data.byte[2] = battV & 0xFF; //should be highest this cell has gotten so far not highest cell
+    battV = uint16_t(modules[module].getHighestCellVolt(cell) * 100.0f);
+    outgoing.data.byte[2] = battV & 0xFF;
     outgoing.data.byte[3] = battV >> 8;
-    battV = uint16_t(modules[module].getLowCellV() * 100.0f);
-    outgoing.data.byte[4] = battV & 0xFF; //should be lowest this cell has gotten so far not lowest cell
+    battV = uint16_t(modules[module].getLowestCellVolt(cell) * 100.0f);
+    outgoing.data.byte[4] = battV & 0xFF;
     outgoing.data.byte[5] = battV >> 8;
     int instTemp = modules[module].getHighTemp() + 40;
     outgoing.data.byte[6] = instTemp; // should be nearest temperature reading not highest but this works too.

@@ -3,6 +3,26 @@
 #include "BMSUtil.h"
 #include "Logger.h"
 
+
+BMSModule::BMSModule()
+{
+    for (int i = 0; i < 6; i++)
+    {
+        cellVolt[i] = 0.0f;
+        lowestCellVolt[i] = 5.0f;
+        highestCellVolt[i] = 0.0f;
+    }
+    moduleVolt = 0.0f;
+    temperatures[0] = 0.0f;
+    temperatures[1] = 0.0f;
+    lowestTemperature = 200.0f;
+    highestTemperature = -100.0f;
+    lowestModuleVolt = 200.0f;
+    highestModuleVolt = 0.0f;
+    exists = false;
+    moduleAddress = 0;
+}
+
 /*
 Reading the status of the board to identify any flags, will be more useful when implementing a sleep cycle
 */
@@ -74,9 +94,19 @@ bool BMSModule::readModuleValues()
         {
             //payload is 2 bytes gpai, 2 bytes for each of 6 cell voltages, 2 bytes for each of two temperatures (18 bytes of data)
             moduleVolt = (buff[3] * 256 + buff[4]) * 0.002034609f;
-            for (int i = 0; i < 6; i++) cellVolt[i] = (buff[5 + (i * 2)] * 256 + buff[6 + (i * 2)]) * 0.000381493f;
+            if (moduleVolt > highestModuleVolt) highestModuleVolt = moduleVolt;
+            if (moduleVolt < lowestModuleVolt) lowestModuleVolt = moduleVolt;            
+            for (int i = 0; i < 6; i++) 
+            {
+                cellVolt[i] = (buff[5 + (i * 2)] * 256 + buff[6 + (i * 2)]) * 0.000381493f;
+                if (lowestCellVolt[i] > cellVolt[i]) lowestCellVolt[i] = cellVolt[i];
+                if (highestCellVolt[i] < cellVolt[i]) highestCellVolt[i] = cellVolt[i];
+            }
             temperatures[0] = (buff[17] * 256 + buff[18] + 2) / 33046.0f;
             temperatures[1] = (buff[19] * 256 + buff[20] + 9) / 33068.0f;
+            if (getLowTemp() < lowestTemperature) lowestTemperature = getLowTemp();
+            if (getHighTemp() > highestTemperature) highestTemperature = getHighTemp();
+
             Logger::debug("Got voltage and temperature readings");
             retVal = true;
         }        
@@ -117,6 +147,38 @@ float BMSModule::getAverageV()
     for (int i = 0; i < 6; i++) avgVal += cellVolt[i];
     avgVal /= 6.0f;
     return avgVal;    
+}
+
+float BMSModule::getHighestModuleVolt()
+{
+    return highestModuleVolt;
+}
+
+float BMSModule::getLowestModuleVolt()
+{
+    return lowestModuleVolt;
+}
+
+float BMSModule::getHighestCellVolt(int cell)
+{
+    if (cell < 0 || cell > 5) return 0.0f;
+    return highestCellVolt[cell];    
+}
+
+float BMSModule::getLowestCellVolt(int cell)
+{
+    if (cell < 0 || cell > 5) return 0.0f;
+    return lowestCellVolt[cell];
+}
+
+float BMSModule::getHighestTemp()
+{
+    return highestTemperature;
+}
+
+float BMSModule::getLowestTemp()
+{
+    return lowestTemperature;
 }
 
 float BMSModule::getLowTemp()
