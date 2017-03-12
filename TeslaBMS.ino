@@ -53,7 +53,7 @@ void loadSettings()
         settings.version = EEPROM_VERSION;
         settings.checksum = 0;
         settings.canSpeed = 500000;
-        settings.batteryID = 0xFF;
+        settings.batteryID = 0x01; //in the future should be 0xFF to force it to ask for an address
         settings.OverVSetpoint = 4.1f;
         settings.UnderVSetpoint = 2.3f;
         settings.OverTSetpoint = 65.0f;
@@ -102,7 +102,7 @@ void setup()
     
     bms.findBoards();
     
-    Logger::setLoglevel(Logger::Debug);
+    Logger::setLoglevel(Logger::Debug); //temporary. Force debugging so I can see all messages
     
     lastUpdate = 0;
 }

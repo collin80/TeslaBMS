@@ -135,8 +135,6 @@ void BMSModuleManager::findBoards()
     uint8_t buff[8];
 
     numFoundModules = 0;
-
-    for (int x = 1; x <= MAX_MODULE_ADDR; x++) modules[x].setExists(false);
     
     payload[1] = 0; //read registers starting at 0
     payload[2] = 1; //read one byte
@@ -308,7 +306,11 @@ void BMSModuleManager::processCANMsg(CAN_FRAME &frame)
         {
             for (int i = 1; i <= MAX_MODULE_ADDR; i++) 
             {
-                if (modules[i].isExisting()) sendCellDetails(i, cellId);
+                if (modules[i].isExisting()) 
+                {
+                    sendCellDetails(i, cellId);
+                    delayMicroseconds(500);
+                }
             }
         }
     }
@@ -322,7 +324,7 @@ void BMSModuleManager::processCANMsg(CAN_FRAME &frame)
 void BMSModuleManager::sendBatterySummary()
 {
     CAN_FRAME outgoing;
-    outgoing.id = (0x1BA00000ul) + batteryID << 16 + 0xFFFF;
+    outgoing.id = (0x1BA00000ul) + ((batteryID & 0xF) << 16) + 0xFFFF;
     outgoing.rtr = 0;
     outgoing.priority = 1;
     outgoing.extended = true;
@@ -349,7 +351,7 @@ void BMSModuleManager::sendBatterySummary()
 void BMSModuleManager::sendModuleSummary(int module)
 {
     CAN_FRAME outgoing;
-    outgoing.id = (0x1BA00000ul) + batteryID << 16 + 0xFFFF;
+    outgoing.id = (0x1BA00000ul) + ((batteryID & 0xF) << 16) + ((module & 0xFF) << 8) + 0xFF;
     outgoing.rtr = 0;
     outgoing.priority = 1;
     outgoing.extended = true;
@@ -377,7 +379,7 @@ void BMSModuleManager::sendModuleSummary(int module)
 void BMSModuleManager::sendCellDetails(int module, int cell)
 {
     CAN_FRAME outgoing;
-    outgoing.id = (0x1BA00000ul) + batteryID << 16 + 0xFFFF;
+    outgoing.id = (0x1BA00000ul) + ((batteryID & 0xF) << 16) + ((module & 0xFF) << 8) + (cell & 0xFF);
     outgoing.rtr = 0;
     outgoing.priority = 1;
     outgoing.extended = true;
