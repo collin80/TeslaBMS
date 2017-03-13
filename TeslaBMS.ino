@@ -105,6 +105,8 @@ void setup()
     Logger::setLoglevel(Logger::Debug); //temporary. Force debugging so I can see all messages
     
     lastUpdate = 0;
+    
+    bms.clearFaults();
 }
 
 void loop() 

@@ -247,6 +247,7 @@ void SerialConsole::handleShortCmd() {
         bms.findBoards();
         break;
     case 'R':
+        Logger::console("Renumbering all boards.");
         bms.renumberBoardIDs();
         break;
     case 'B':

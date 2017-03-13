@@ -64,6 +64,8 @@ bool BMSModule::readModuleValues()
     uint8_t payload[4];
     uint8_t buff[50];
     bool retVal = false;
+    float tempCalc;
+    float tempTemp;
     
     payload[0] = moduleAddress << 1;
     payload[1] = REG_ADC_CTRL;
@@ -77,8 +79,8 @@ bool BMSModule::readModuleValues()
     BMSUtil::sendData(payload, 3, true);
     delay(2);        
     BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
-        
-    payload[1] = REG_ADC_CONV;
+            
+    payload[1] = REG_ADC_CONV; //start all ADC conversions
     payload[2] = 1;
     BMSUtil::sendData(payload, 3, true);
     delay(2);        
@@ -102,8 +104,22 @@ bool BMSModule::readModuleValues()
                 if (lowestCellVolt[i] > cellVolt[i]) lowestCellVolt[i] = cellVolt[i];
                 if (highestCellVolt[i] < cellVolt[i]) highestCellVolt[i] = cellVolt[i];
             }
-            temperatures[0] = (buff[17] * 256 + buff[18] + 2) / 33046.0f;
-            temperatures[1] = (buff[19] * 256 + buff[20] + 9) / 33068.0f;
+            
+            //Logger::debug("Raw temp0: %i", buff[17] * 256 + buff[18]);
+            tempTemp = (1.78f / ((buff[17] * 256 + buff[18] + 2) / 33046.0f) - 3.56f);
+            tempCalc = 77.16013459f - (tempTemp * 7.284328039f);
+            tempCalc += 0.239392948f * (tempTemp * tempTemp);
+            tempCalc -= .00271619635 * (tempTemp * tempTemp * tempTemp);            
+            
+            temperatures[0] = tempCalc;            
+            
+            //Logger::debug("Raw temp1: %i", buff[19] * 256 + buff[20]);
+            tempTemp = 1.78f / ((buff[19] * 256 + buff[20] + 9) / 33068.0f) - 3.56f;
+            tempCalc = 77.16013459f - (tempTemp * 7.284328039f);
+            tempCalc += 0.239392948f * (tempTemp * tempTemp);
+            tempCalc -= .00271619635 * (tempTemp * tempTemp * tempTemp);            
+            temperatures[1] = tempCalc;
+            
             if (getLowTemp() < lowestTemperature) lowestTemperature = getLowTemp();
             if (getHighTemp() > highestTemperature) highestTemperature = getHighTemp();
 
@@ -112,11 +128,11 @@ bool BMSModule::readModuleValues()
         }        
     }            
     
-    payload[1] = REG_IO_CTRL;
-    payload[2] = 0b00000000; //turn off temperature measurement pins
-    BMSUtil::sendData(payload, 3, true);
-    delay(2);        
-    BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back    
+    //payload[1] = REG_IO_CTRL;
+    //payload[2] = 0b00000000; //turn off temperature measurement pins
+    //BMSUtil::sendData(payload, 3, true);
+    //delay(2);        
+    //BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back    
     
     return retVal;
 }

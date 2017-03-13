@@ -88,14 +88,18 @@ void BMSModuleManager::setupBoards()
 
     payload[0] = 0;
     payload[1] = 0;
-    payload[2] = 0;  
+    payload[2] = 1;
+    
     while (1 == 1)
     {
+        payload[0] = 0;
+        payload[1] = 0;
+        payload[2] = 1;
         BMSUtil::sendData(payload, 3, false);
         delay(3);
         if (BMSUtil::getReply(buff, 10) > 2)
         {
-            if (buff[0] == 0x80 && buff[1] == 0 && buff[2] == 0)
+            if (buff[0] == 0x80 && buff[1] == 0 && buff[2] == 1)
             {
                 Logger::debug("00 found");
                 //look for a free address to use
@@ -110,7 +114,7 @@ void BMSModuleManager::setupBoards()
                         delay(3);
                         if (BMSUtil::getReply(buff, 10) > 2)
                         {
-                            if (buff[0] == (y << 1) && buff[1] == REG_ADDR_CTRL && buff[2] == (y | 0x80)) 
+                            if (buff[0] == (0x81) && buff[1] == REG_ADDR_CTRL && buff[2] == (y + 0x80)) 
                             {
                                 modules[y].setExists(true);
                                 numFoundModules++;
@@ -135,7 +139,7 @@ void BMSModuleManager::findBoards()
     uint8_t buff[8];
 
     numFoundModules = 0;
-    
+    payload[0] = 0;
     payload[1] = 0; //read registers starting at 0
     payload[2] = 1; //read one byte
     for (int x = 1; x <= MAX_MODULE_ADDR; x++)
@@ -164,11 +168,18 @@ void BMSModuleManager::renumberBoardIDs()
 {
   uint8_t payload[3];
   uint8_t buff[8];
+  
+    for (int y = 1; y < 63; y++) 
+    {
+        modules[y].setExists(false);  
+    }
+ 
   payload[0] = 0x3F << 1; //broadcast the reset command
   payload[1] = 0x3C;//reset
   payload[2] = 0xA5;//data to cause a reset
   BMSUtil::sendData(payload, 3, true);
-  delay(20);
+  delay(200);
+  BMSUtil::getReply(buff, 8);  
   setupBoards();    //then assign them all consecutive addresses in order
 }
 
@@ -256,6 +267,7 @@ void BMSModuleManager::getAllVoltTemp()
     {
         if (modules[x].isExisting()) 
         {
+            Logger::debug("");
             Logger::debug("Module %i exists. Reading voltage and temperature values", x);
             modules[x].readModuleValues();
             Logger::debug("Module voltage: %f", modules[x].getModuleVoltage());
