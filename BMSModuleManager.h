@@ -24,6 +24,7 @@ public:
     void setBalanceHyst(float newVal);
     float getPackVoltage();
     float getAvgTemperature();
+    float getAvgCellVolt();
     void processCANMsg(CAN_FRAME &frame);
     void printPackStatus();
 

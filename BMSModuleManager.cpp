@@ -306,16 +306,30 @@ float BMSModuleManager::getAvgTemperature()
     return avg;
 }
 
+float BMSModuleManager::getAvgCellVolt()
+{
+    float avg = 0.0f;    
+    for (int x = 1; x <= MAX_MODULE_ADDR; x++)
+    {
+        if (modules[x].isExisting()) avg += modules[x].getAverageV();
+    }
+    avg = avg / (float)numFoundModules;
+    
+    return avg;    
+}
+
 void BMSModuleManager::printPackStatus()
 {
     Logger::console("");
-    Logger::console("Pack Status:    Number of Modules: %i    Pack Voltage: %fV", numFoundModules, getPackVoltage());
+    Logger::console("                                        Pack Status:");
+    Logger::console("Modules: %i    Voltage: %fV   Avg Cell Voltage: %fV     Avg Temp: %fC ", numFoundModules, 
+                    getPackVoltage(),getAvgCellVolt(), getAvgTemperature());
     for (int y = 1; y < 63; y++)
     {
         if (modules[y].isExisting())
         {
             Logger::console("                                Module #%i", y);
-            Logger::console("  Voltage: %fV   (%fV-%fV)   Temperatures: (%fC-%fC)", modules[y].getModuleVoltage(), 
+            Logger::console("  Voltage: %fV   (%fV-%fV)     Temperatures: (%fC-%fC)", modules[y].getModuleVoltage(), 
                             modules[y].getLowCellV(), modules[y].getHighCellV(), modules[y].getLowTemp(), modules[y].getHighTemp());
         }
     }
