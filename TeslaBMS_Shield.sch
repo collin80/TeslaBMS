@@ -5673,8 +5673,8 @@ Standard 7-pin 0.1" header. Use with straight break away headers (SKU : PRT-0011
 <junction x="177.8" y="33.02"/>
 </segment>
 <segment>
-<pinref part="C1" gate="G$1" pin="2"/>
 <pinref part="SUPPLY3" gate="GND" pin="GND"/>
+<pinref part="C1" gate="G$1" pin="2"/>
 <wire x1="187.96" y1="0" x2="193.04" y2="0" width="0.1524" layer="91"/>
 <wire x1="193.04" y1="0" x2="193.04" y2="-5.08" width="0.1524" layer="91"/>
 </segment>
@@ -5782,17 +5782,6 @@ Standard 7-pin 0.1" header. Use with straight break away headers (SKU : PRT-0011
 <pinref part="J1" gate="G$1" pin="3"/>
 </segment>
 </net>
-<net name="N$5" class="0">
-<segment>
-<wire x1="266.7" y1="30.48" x2="187.96" y2="30.48" width="0.1524" layer="91"/>
-<pinref part="U2" gate="G$1" pin="B"/>
-<wire x1="187.96" y1="30.48" x2="187.96" y2="22.86" width="0.1524" layer="91"/>
-<pinref part="U2" gate="G$1" pin="A"/>
-<wire x1="187.96" y1="22.86" x2="187.96" y2="17.78" width="0.1524" layer="91"/>
-<junction x="187.96" y="22.86"/>
-<pinref part="J1" gate="G$1" pin="4"/>
-</segment>
-</net>
 <net name="FAULT" class="0">
 <segment>
 <wire x1="266.7" y1="27.94" x2="241.3" y2="27.94" width="0.1524" layer="91"/>
@@ -5883,6 +5872,19 @@ Standard 7-pin 0.1" header. Use with straight break away headers (SKU : PRT-0011
 <pinref part="R2" gate="G$1" pin="2"/>
 <wire x1="152.4" y1="86.36" x2="152.4" y2="88.9" width="0.1524" layer="91"/>
 <junction x="152.4" y="88.9"/>
+</segment>
+</net>
+<net name="N$5" class="0">
+<segment>
+<pinref part="J1" gate="G$1" pin="4"/>
+<wire x1="266.7" y1="30.48" x2="223.52" y2="30.48" width="0.1524" layer="91"/>
+<wire x1="223.52" y1="30.48" x2="223.52" y2="27.94" width="0.1524" layer="91"/>
+<pinref part="U2" gate="G$1" pin="A"/>
+<pinref part="U2" gate="G$1" pin="B"/>
+<wire x1="187.96" y1="22.86" x2="187.96" y2="17.78" width="0.1524" layer="91"/>
+<wire x1="223.52" y1="27.94" x2="187.96" y2="27.94" width="0.1524" layer="91"/>
+<wire x1="187.96" y1="27.94" x2="187.96" y2="22.86" width="0.1524" layer="91"/>
+<junction x="187.96" y="22.86"/>
 </segment>
 </net>
 </nets>

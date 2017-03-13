@@ -33,6 +33,9 @@ template<class T> inline Print &operator <<(Print &obj, T arg) { obj.print(arg);
 extern EEPROMSettings settings;
 extern BMSModuleManager bms;
 
+bool printPrettyDisplay;
+uint32_t prettyCounter;
+
 SerialConsole::SerialConsole() {
     init();
 }
@@ -43,11 +46,18 @@ void SerialConsole::init() {
     state = STATE_ROOT_MENU;
     loopcount=0;
     cancel=false;
+    printPrettyDisplay = false;
+    prettyCounter = 0;
 }
 
 void SerialConsole::loop() {  
     if (SERIALCONSOLE.available()) {
         serialEvent();
+    }
+    if (printPrettyDisplay && (millis() > (prettyCounter + 5000)))
+    {
+        prettyCounter = millis();
+        bms.printPackStatus();
     }
 }
               
@@ -64,6 +74,7 @@ void SerialConsole::printMenu() {
     Logger::console("   F = Find all connected boards");
     Logger::console("   R = Renumber connected boards in sequence");
     Logger::console("   B = Attempt balancing for 5 seconds");
+    Logger::console("   p = Toggle output of formatted pack status every 5 seconds");
   
     Logger::console("   LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", Logger::getLogLevel());
     Logger::console("   CANSPEED=%i - set first CAN bus speed", settings.canSpeed);
@@ -253,6 +264,9 @@ void SerialConsole::handleShortCmd() {
     case 'B':
         bms.balanceCells();
         break;    
+    case 'p':
+        printPrettyDisplay = !printPrettyDisplay;
+        break;
     }
 }
 

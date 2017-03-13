@@ -172,6 +172,7 @@ void BMSModuleManager::renumberBoardIDs()
     for (int y = 1; y < 63; y++) 
     {
         modules[y].setExists(false);  
+        numFoundModules = 0;
     }
  
   payload[0] = 0x3F << 1; //broadcast the reset command
@@ -303,6 +304,21 @@ float BMSModuleManager::getAvgTemperature()
     avg = avg / (float)numFoundModules;
     
     return avg;
+}
+
+void BMSModuleManager::printPackStatus()
+{
+    Logger::console("");
+    Logger::console("Pack Status:    Number of Modules: %i    Pack Voltage: %fV", numFoundModules, getPackVoltage());
+    for (int y = 1; y < 63; y++)
+    {
+        if (modules[y].isExisting())
+        {
+            Logger::console("                                Module #%i", y);
+            Logger::console("  Voltage: %fV   (%fV-%fV)   Temperatures: (%fC-%fC)", modules[y].getModuleVoltage(), 
+                            modules[y].getLowCellV(), modules[y].getHighCellV(), modules[y].getLowTemp(), modules[y].getHighTemp());
+        }
+    }
 }
 
 void BMSModuleManager::processCANMsg(CAN_FRAME &frame)

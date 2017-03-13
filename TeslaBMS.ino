@@ -102,7 +102,7 @@ void setup()
     
     bms.findBoards();
     
-    Logger::setLoglevel(Logger::Debug); //temporary. Force debugging so I can see all messages
+    //Logger::setLoglevel(Logger::Debug);
     
     lastUpdate = 0;
     
