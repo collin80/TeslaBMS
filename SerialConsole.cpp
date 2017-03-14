@@ -24,6 +24,8 @@
 
  */
 
+#include <due_wire.h>
+#include <Wire_EEPROM.h>
 #include "SerialConsole.h"
 #include "Logger.h"
 #include "BMSModuleManager.h"
@@ -78,6 +80,7 @@ void SerialConsole::printMenu() {
   
     Logger::console("   LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", Logger::getLogLevel());
     Logger::console("   CANSPEED=%i - set first CAN bus speed", settings.canSpeed);
+    Logger::console("   BATTERYID=%i - Set battery ID for CAN protocol (1-14)", settings.batteryID);
     
     Logger::console("\nBATTERY MANAGEMENT CONTROLS\n");
     Logger::console("   VOLTLIMHI=%f - High limit for cells in volts", settings.OverVSetpoint);
@@ -86,6 +89,13 @@ void SerialConsole::printMenu() {
     Logger::console("   TEMPLIMLO=%f - Low limit for cell temperature in degrees C", settings.UnderTSetpoint);
     Logger::console("   BALVOLT=%f - Voltage at which to begin cell balancing", settings.balanceVoltage);
     Logger::console("   BALHYST=%f - Voltage difference between highest and lowest cell that will cause balancing", settings.balanceHyst);
+    
+    float OverVSetpoint;
+    float UnderVSetpoint;
+    float OverTSetpoint;
+    float UnderTSetpoint;
+    float balanceVoltage;
+    float balanceHyst;
 }
 
 /*	There is a help menu (press H or h or ?)
@@ -126,6 +136,8 @@ void SerialConsole::handleConsoleCmd() {
 void SerialConsole::handleConfigCmd() {
     int i;
     int newValue;
+    float newFloat;
+    bool needEEPROMWrite = false;
 
     //Logger::debug("Cmd size: %i", ptrBuffer);
     if (ptrBuffer < 6)
@@ -148,6 +160,7 @@ void SerialConsole::handleConfigCmd() {
 
     // strtol() is able to parse also hex values (e.g. a string "0xCAFE"), useful for enable/disable by device id
     newValue = strtol((char *) (cmdBuffer + i), NULL, 0);
+    newFloat = strtof((char *) (cmdBuffer + i), NULL);
 
     cmdString.toUpperCase();
     
@@ -155,6 +168,7 @@ void SerialConsole::handleConfigCmd() {
         if (newValue >= 33000 && newValue <= 1000000) {
             settings.canSpeed = newValue;
             Logger::console("Setting CAN speed to %i", newValue);
+            needEEPROMWrite = true;
         }
         else Logger::console("Invalid speed. Enter a value between 33000 and 1000000");
     } else if (cmdString == String("LOGLEVEL")) {
@@ -185,52 +199,64 @@ void SerialConsole::handleConfigCmd() {
             Logger::setLoglevel(Logger::Off);
             break;
         } 
-    } /*else if (cmdString == String("VOLTLIMHI") && bmsConfig ) {
-        if (newValue >= 0 && newValue <= 6000) {
-            bmsConfig->highVoltLimit = newValue;
-            bms->saveConfiguration();
-            Logger::console("Battery High Voltage Limit set to: %d", bmsConfig->highVoltLimit);
+        needEEPROMWrite = true;
+    } else if (cmdString == String("BATTERYID")) {
+        if (newValue > 0 && newValue < 15) {
+            settings.batteryID = newValue;
+            needEEPROMWrite = true;
+            Logger::console("Battery ID set to: %i", newValue);
         }
-        else Logger::console("Invalid high voltage limit please enter a value between 0 and 6000");
-    } else if (cmdString == String("VOLTLIMLO") && bmsConfig ) {
-        if (newValue >= 0 && newValue <= 6000) {
-            bmsConfig->lowVoltLimit = newValue;
-            bms->saveConfiguration();
-            Logger::console("Battery Low Voltage Limit set to: %d", bmsConfig->lowVoltLimit);
+        else Logger::console("Invalid battery ID. Please enter a value between 1 and 14");                    
+    } else if (cmdString == String("VOLTLIMHI")) {
+        if (newFloat >= 0.0f && newFloat <= 6.00f) {
+            settings.OverVSetpoint = newFloat; 
+            needEEPROMWrite = true;
+            Logger::console("Cell Voltage Upper Limit set to: %f", settings.OverVSetpoint);
         }
-        else Logger::console("Invalid low voltage limit please enter a value between 0 and 6000");
-    } else if (cmdString == String("CELLLIMHI") && bmsConfig ) {
-        if (newValue >= 0 && newValue <= 20000) {
-            bmsConfig->highCellLimit = newValue;
-            bms->saveConfiguration();
-            Logger::console("Cell High Voltage Limit set to: %d", bmsConfig->highCellLimit);
+        else Logger::console("Invalid upper cell voltage limit. Please enter a value 0.0 to 6.0");
+    } else if (cmdString == String("VOLTLIMLO")) {
+        if (newFloat >= 0.0f && newFloat <= 6.0f) {
+            settings.UnderVSetpoint = newFloat;
+            needEEPROMWrite = true;
+            Logger::console("Cell Voltage Lower Limit set to %f", settings.UnderVSetpoint);
         }
-        else Logger::console("Invalid high voltage limit please enter a value between 0 and 20000");
-    } else if (cmdString == String("CELLLIMLO") && bmsConfig ) {
-        if (newValue >= 0 && newValue <= 20000) {
-            bmsConfig->lowCellLimit = newValue;
-            bms->saveConfiguration();
-            Logger::console("Cell Low Voltage Limit set to: %d", bmsConfig->lowCellLimit);
+        else Logger::console("Invalid lower cell voltage limit. Please enter a value 0.0 to 6.0");
+    } else if (cmdString == String("BALVOLT")) {
+        if (newFloat >= 0.0f && newFloat <= 6.0f) {
+            settings.balanceVoltage = newFloat;
+            needEEPROMWrite = true;
+            Logger::console("Balance voltage set to %f", settings.balanceVoltage);
         }
-        else Logger::console("Invalid low voltage limit please enter a value between 0 and 20000");
-    } else if (cmdString == String("TEMPLIMHI") && bmsConfig ) {
-        if (newValue >= 0 && newValue <= 2000) {
-            bmsConfig->highTempLimit = newValue;
-            bms->saveConfiguration();
-            Logger::console("Battery Temperature Upper Limit set to: %d", bmsConfig->highTempLimit);
+        else Logger::console("Invalid balancing voltage. Please enter a value 0.0 to 6.0");
+    } else if (cmdString == String("BALHYST")) {
+        if (newFloat >= 0.0f && newFloat <= 1.0f) {
+            settings.balanceHyst = newFloat;
+            needEEPROMWrite = true;
+            Logger::console("Balance hysteresis set to %f", settings.balanceHyst);
         }
-        else Logger::console("Invalid temperature upper limit please enter a value between 0 and 2000");
-    } else if (cmdString == String("TEMPLIMLO") && bmsConfig ) {
-        if (newValue >= -2000 && newValue <= 2000) {
-            bmsConfig->lowTempLimit = newValue;
-            bms->saveConfiguration();
-            Logger::console("Battery Temperature Lower Limit set to: %d", bmsConfig->lowTempLimit);
+        else Logger::console("Invalid balance hysteresis. Please enter a value 0.0 to 1.0");        
+    } else if (cmdString == String("TEMPLIMHI")) {
+        if (newFloat >= 0.0f && newFloat <= 100.0f) {
+            settings.OverTSetpoint = newFloat;
+            needEEPROMWrite=true;
+            Logger::console("Module Temperature Upper Limit set to: %f", settings.OverTSetpoint);
         }
-        else Logger::console("Invalid temperature lower limit please enter a value between -2000 and 2000");
+        else Logger::console("Invalid temperature upper limit please enter a value 0.0 to 100.0");
+    } else if (cmdString == String("TEMPLIMLO")) {
+        if (newFloat >= -20.00f && newFloat <= 120.0f) {
+            settings.UnderTSetpoint = newFloat;
+            needEEPROMWrite = true;
+            Logger::console("Module Temperature Lower Limit set to: %f", settings.UnderTSetpoint);
+        }
+        else Logger::console("Invalid temperature lower limit please enter a value between -20.0 and 120.0");        
     } else {
         Logger::console("Unknown command");
-        updateWifi = false;
-    } */
+    } 
+    
+    if (needEEPROMWrite)
+    {
+        EEPROM.write(EEPROM_PAGE, settings);
+    }
 }
 
 void SerialConsole::handleShortCmd() {
@@ -266,6 +292,14 @@ void SerialConsole::handleShortCmd() {
         break;    
     case 'p':
         printPrettyDisplay = !printPrettyDisplay;
+        if (printPrettyDisplay)
+        {
+            Logger::console("Enabling pack status display, 5 second interval");
+        }
+        else
+        {
+            Logger::console("No longer displaying pack status.");
+        }
         break;
     }
 }
