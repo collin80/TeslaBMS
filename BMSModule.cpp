@@ -112,15 +112,14 @@ bool BMSModule::readModuleValues()
                 if (highestCellVolt[i] < cellVolt[i]) highestCellVolt[i] = cellVolt[i];
             }
             
-            //Logger::debug("Raw temp0: %i", buff[17] * 256 + buff[18]);
             tempTemp = (1.78f / ((buff[17] * 256 + buff[18] + 2) / 33046.0f) - 3.56f);
+            //these lines implement a third order approximation of the resistance to temperature curve for the thermistor
             tempCalc = 77.16013459f - (tempTemp * 7.284328039f);
             tempCalc += 0.239392948f * (tempTemp * tempTemp);
             tempCalc -= .00271619635 * (tempTemp * tempTemp * tempTemp);            
             
             temperatures[0] = tempCalc;            
             
-            //Logger::debug("Raw temp1: %i", buff[19] * 256 + buff[20]);
             tempTemp = 1.78f / ((buff[19] * 256 + buff[20] + 9) / 33068.0f) - 3.56f;
             tempCalc = 77.16013459f - (tempTemp * 7.284328039f);
             tempCalc += 0.239392948f * (tempTemp * tempTemp);

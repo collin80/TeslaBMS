@@ -10,11 +10,6 @@
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 
-/*Misc notes:
-Loglevel does not persist in EEPROM. Fix that
-Getting an invalid response to module data around 26 times per minute. Happens randomly.
-*/
-
 BMSModuleManager bms;
 EEPROMSettings settings;
 SerialConsole console;
