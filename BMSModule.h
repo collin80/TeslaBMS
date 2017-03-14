@@ -37,6 +37,10 @@ private:
     float lowestModuleVolt;
     float highestModuleVolt;
     bool exists;
+    int alerts;
+    int faults;
+    int COVFaults;
+    int CUVFaults;
 
     uint8_t moduleAddress;     //1 to 0x3E
 };

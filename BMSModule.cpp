@@ -32,10 +32,12 @@ void BMSModule::readStatus()
   uint8_t buff[8];
   payload[0] = moduleAddress << 1; //adresss
   payload[1] = REG_ALERT_STATUS;//Alert Status start
-  payload[2] = 0x02;//two registers
-  BMSUtil::sendData(payload, 3, false);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
+  payload[2] = 0x04;
+  BMSUtil::sendDataWithReply(payload, 3, false, buff, 7);
+  alerts = buff[3];
+  faults = buff[4];
+  COVFaults = buff[5];
+  CUVFaults = buff[6];
 }
 
 /*
@@ -70,6 +72,10 @@ bool BMSModule::readModuleValues()
     float tempTemp;
     
     payload[0] = moduleAddress << 1;
+    
+    readStatus();
+    Logger::debug("Module %i   alerts=%X   faults=%X   COV=%X   CUV=%X", moduleAddress, alerts, faults, COVFaults, CUVFaults);
+    
     payload[1] = REG_ADC_CTRL;
     payload[2] = 0b00111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
     BMSUtil::sendDataWithReply(payload, 3, true, buff, 3);

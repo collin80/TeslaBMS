@@ -195,7 +195,7 @@ void BMSModuleManager::clearFaults()
   uint8_t buff[8];
   payload[0] = 0x7F; //broadcast
   payload[1] = REG_ALERT_STATUS;//Alert Status
-  payload[2] = 0x80;//data to cause a reset
+  payload[2] = 0xFF;//data to cause a reset
   BMSUtil::sendData(payload, 3, true);
   delay(2);
   BMSUtil::getReply(buff, 8);
@@ -207,7 +207,7 @@ void BMSModuleManager::clearFaults()
   
   payload[0] = 0x7F; //broadcast
   payload[1] = REG_FAULT_STATUS;//Fault Status
-  payload[2] = 0x08;//data to cause a reset
+  payload[2] = 0xFF;//data to cause a reset
   BMSUtil::sendData(payload, 3, true);
   delay(2);
   BMSUtil::getReply(buff, 8);
