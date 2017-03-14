@@ -335,6 +335,11 @@ float BMSModuleManager::getAvgCellVolt()
 
 void BMSModuleManager::printPackStatus()
 {
+    uint8_t faults;
+    uint8_t alerts;
+    uint8_t COV;
+    uint8_t CUV;
+    
     Logger::console("");
     Logger::console("");
     Logger::console("");
@@ -348,9 +353,98 @@ void BMSModuleManager::printPackStatus()
     {
         if (modules[y].isExisting())
         {
-            Logger::console("                                Module #%i", y);
+            faults = modules[y].getFaults();
+            alerts = modules[y].getAlerts();
+            COV = modules[y].getCOVCells();
+            CUV = modules[y].getCUVCells();
+            
+            Logger::console("                               Module #%i", y);
+            
             Logger::console("  Voltage: %fV   (%fV-%fV)     Temperatures: (%fC-%fC)", modules[y].getModuleVoltage(), 
                             modules[y].getLowCellV(), modules[y].getHighCellV(), modules[y].getLowTemp(), modules[y].getHighTemp());
+            if (faults > 0)
+            {
+                Logger::console("  MODULE IS FAULTED:");
+                if (faults & 1)
+                {
+                    SerialUSB.print("    Overvoltage Cell Numbers (1-6): ");
+                    for (int i = 0; i < 6; i++)
+                    {
+                        if (COV & (1 << i)) 
+                        {
+                            SerialUSB.print(i+1);
+                            SerialUSB.print(" ");
+                        }
+                    }
+                    SerialUSB.println();
+                }
+                if (faults & 2)
+                {
+                    SerialUSB.print("    Undervoltage Cell Numbers (1-6): ");
+                    for (int i = 0; i < 6; i++)
+                    {
+                        if (CUV & (1 << i)) 
+                        {
+                            SerialUSB.print(i+1);
+                            SerialUSB.print(" ");
+                        }
+                    }
+                    SerialUSB.println();
+                }
+                if (faults & 4)
+                {
+                    Logger::console("    CRC error in received packet");
+                }
+                if (faults & 8)
+                {
+                    Logger::console("    Power on reset has occurred");
+                }
+                if (faults & 0x10)
+                {
+                    Logger::console("    Test fault active");
+                }
+                if (faults & 0x20)
+                {
+                    Logger::console("    Internal registers inconsistent");
+                }
+            }
+            if (alerts > 0)
+            {
+                Logger::console("  MODULE HAS ALERTS:");
+                if (alerts & 1)
+                {
+                    Logger::console("    Over temperature on TS1");
+                }
+                if (alerts & 2)
+                {
+                    Logger::console("    Over temperature on TS2");
+                }
+                if (alerts & 4)
+                {
+                    Logger::console("    Sleep mode active");
+                }
+                if (alerts & 8)
+                {
+                    Logger::console("    Thermal shutdown active");
+                }
+                if (alerts & 0x10)
+                {
+                    Logger::console("    Test Alert");
+                }
+                if (alerts & 0x20)
+                {
+                    Logger::console("    OTP EPROM Uncorrectable Error");
+                }
+                if (alerts & 0x40)
+                {
+                    Logger::console("    GROUP3 Regs Invalid");
+                }
+                if (alerts & 0x80)
+                {
+                    Logger::console("    Address not registered");
+                }                
+            }
+            if (faults > 0 || alerts > 0) SerialUSB.println();
         }
     }
 }

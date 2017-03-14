@@ -40,6 +40,26 @@ void BMSModule::readStatus()
   CUVFaults = buff[6];
 }
 
+uint8_t BMSModule::getFaults()
+{
+    return faults;
+}
+
+uint8_t BMSModule::getAlerts()
+{
+    return alerts;
+}
+
+uint8_t BMSModule::getCOVCells()
+{
+    return COVFaults;
+}
+
+uint8_t BMSModule::getCUVCells()
+{
+    return CUVFaults;
+}
+
 /*
 Reading the setpoints, after a reset the default tesla setpoints are loaded
 Default response : 0x10, 0x80, 0x31, 0x81, 0x08, 0x81, 0x66, 0xff
@@ -112,7 +132,7 @@ bool BMSModule::readModuleValues()
                 if (highestCellVolt[i] < cellVolt[i]) highestCellVolt[i] = cellVolt[i];
             }
             
-            tempTemp = (1.78f / ((buff[17] * 256 + buff[18] + 2) / 33046.0f) - 3.56f);
+            tempTemp = (1.78f / ((buff[17] * 256 + buff[18] + 2) / 33046.0f) - 5.34f);
             //these lines implement a third order approximation of the resistance to temperature curve for the thermistor
             tempCalc = 77.16013459f - (tempTemp * 7.284328039f);
             tempCalc += 0.239392948f * (tempTemp * tempTemp);
@@ -120,7 +140,7 @@ bool BMSModule::readModuleValues()
             
             temperatures[0] = tempCalc;            
             
-            tempTemp = 1.78f / ((buff[19] * 256 + buff[20] + 9) / 33068.0f) - 3.56f;
+            tempTemp = 1.78f / ((buff[19] * 256 + buff[20] + 9) / 33068.0f) - 5.34f;
             tempCalc = 77.16013459f - (tempTemp * 7.284328039f);
             tempCalc += 0.239392948f * (tempTemp * tempTemp);
             tempCalc -= .00271619635 * (tempTemp * tempTemp * tempTemp);            

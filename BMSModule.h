@@ -21,6 +21,10 @@ public:
     float getAvgTemp();
     float getModuleVoltage();
     float getTemperature(int temp);
+    uint8_t getFaults();
+    uint8_t getAlerts();
+    uint8_t getCOVCells();
+    uint8_t getCUVCells();
     void setAddress(int newAddr);
     int getAddress();
     bool isExisting();
