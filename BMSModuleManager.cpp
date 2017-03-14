@@ -15,6 +15,7 @@ BMSModuleManager::BMSModuleManager()
     highestPackVolt = 0.0f;
     lowestPackTemp = 200.0f;
     highestPackTemp = -100.0f;
+    isFaulted = false;
 
 }
 
@@ -147,7 +148,7 @@ void BMSModuleManager::findBoards()
         modules[x].setExists(false);
         payload[0] = x << 1;
         BMSUtil::sendData(payload, 3, false);
-        delay(2);
+        delay(20);
         if (BMSUtil::getReply(buff, 8) > 4)
         {
             if (buff[0] == (x << 1) && buff[1] == 0 && buff[2] == 1 && buff[4] > 0) {
@@ -156,6 +157,7 @@ void BMSModuleManager::findBoards()
                 Logger::debug("Found module with address: %X", x); 
             }
         }
+        delay(5);
     }
 }
 
@@ -214,6 +216,8 @@ void BMSModuleManager::clearFaults()
   BMSUtil::sendData(payload, 3, true);
   delay(2);
   BMSUtil::getReply(buff, 8);
+  
+  isFaulted = false;
 }
 
 /*
@@ -281,7 +285,17 @@ void BMSModuleManager::getAllVoltTemp()
     }
     
     if (packVolt > highestPackVolt) highestPackVolt = packVolt;
-    if (packVolt < lowestPackVolt) lowestPackVolt = packVolt;    
+    if (packVolt < lowestPackVolt) lowestPackVolt = packVolt;
+    
+    if (digitalRead(13) == LOW) {
+        if (!isFaulted) Logger::error("One or more BMS modules have entered the fault state!");
+        isFaulted = true;
+    }
+    else
+    {
+        if (isFaulted) Logger::info("All modules have exited a faulted state");
+        isFaulted = false;
+    }
 }
 
 float BMSModuleManager::getPackVoltage()
@@ -321,9 +335,14 @@ float BMSModuleManager::getAvgCellVolt()
 void BMSModuleManager::printPackStatus()
 {
     Logger::console("");
-    Logger::console("                                        Pack Status:");
+    Logger::console("");
+    Logger::console("");
+    Logger::console("                                     Pack Status:");
+    if (isFaulted) Logger::console("                                       FAULTED!");
+    else Logger::console("                                   All systems go!");
     Logger::console("Modules: %i    Voltage: %fV   Avg Cell Voltage: %fV     Avg Temp: %fC ", numFoundModules, 
                     getPackVoltage(),getAvgCellVolt(), getAvgTemperature());
+    Logger::console("");
     for (int y = 1; y < 63; y++)
     {
         if (modules[y].isExisting())

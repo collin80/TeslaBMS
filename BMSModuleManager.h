@@ -37,6 +37,7 @@ private:
     BMSModule modules[MAX_MODULE_ADDR + 1]; // store data for as many modules as we've configured for.
     int batteryID;
     int numFoundModules;                    // The number of modules that seem to exist
+    bool isFaulted;
     
     void sendBatterySummary();
     void sendModuleSummary(int module);

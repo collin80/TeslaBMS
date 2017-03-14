@@ -63,36 +63,37 @@ bool BMSModule::readModuleValues()
 {
     uint8_t payload[4];
     uint8_t buff[50];
+    uint8_t calcCRC;
     bool retVal = false;
+    int retLen;
     float tempCalc;
     float tempTemp;
     
     payload[0] = moduleAddress << 1;
     payload[1] = REG_ADC_CTRL;
     payload[2] = 0b00111101; //ADC Auto mode, read every ADC input we can (Both Temps, Pack, 6 cells)
-    BMSUtil::sendData(payload, 3, true);
-    delay(2);
-    BMSUtil::getReply(buff, 50);     //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
+    BMSUtil::sendDataWithReply(payload, 3, true, buff, 3);
  
     payload[1] = REG_IO_CTRL;
     payload[2] = 0b00000011; //enable temperature measurement VSS pins
-    BMSUtil::sendData(payload, 3, true);
-    delay(2);        
-    BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
+    BMSUtil::sendDataWithReply(payload, 3, true, buff, 3);
             
     payload[1] = REG_ADC_CONV; //start all ADC conversions
     payload[2] = 1;
-    BMSUtil::sendData(payload, 3, true);
-    delay(2);        
-    BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back
-            
+    BMSUtil::sendDataWithReply(payload, 3, true, buff, 3);
+                
     payload[1] = REG_GPAI; //start reading registers at the module voltage registers
     payload[2] = 0x12; //read 18 bytes (Each value takes 2 - ModuleV, CellV1-6, Temp1, Temp2)
-    BMSUtil::sendData(payload, 3, false);
-    delay(2);
-    if (BMSUtil::getReply(buff, 50) > 0x14)
+    retLen = BMSUtil::sendDataWithReply(payload, 3, false, buff, 22);
+            
+    calcCRC = BMSUtil::genCRC(buff, retLen-1);
+    Logger::debug("Sent CRC: %x     Calculated CRC: %x", buff[21], calcCRC);
+
+    //18 data bytes, address, command, length, and CRC = 22 bytes returned
+    //Also validate CRC to ensure we didn't get garbage data.
+    if ( (retLen == 22) && (buff[21] == calcCRC) )
     {
-        if (buff[0] == (moduleAddress << 1) && buff[1] == REG_GPAI && buff[2] == 0x12)
+        if (buff[0] == (moduleAddress << 1) && buff[1] == REG_GPAI && buff[2] == 0x12) //Also ensure this is actually the reply to our intended query
         {
             //payload is 2 bytes gpai, 2 bytes for each of 6 cell voltages, 2 bytes for each of two temperatures (18 bytes of data)
             moduleVolt = (buff[3] * 256 + buff[4]) * 0.002034609f;
@@ -126,13 +127,19 @@ bool BMSModule::readModuleValues()
             Logger::debug("Got voltage and temperature readings");
             retVal = true;
         }        
-    }            
-    
-    //payload[1] = REG_IO_CTRL;
-    //payload[2] = 0b00000000; //turn off temperature measurement pins
-    //BMSUtil::sendData(payload, 3, true);
-    //delay(2);        
-    //BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back    
+    }
+    else
+    {
+        Logger::error("Invalid module response received for module %i  len: %i   crc: %i   calc: %i", 
+                      moduleAddress, retLen, buff[21], calcCRC);
+    }
+     
+     //turning the temperature wires off here seems to cause weird temperature glitches
+   // payload[1] = REG_IO_CTRL;
+   // payload[2] = 0b00000000; //turn off temperature measurement pins
+   // BMSUtil::sendData(payload, 3, true);
+   // delay(3);        
+   // BMSUtil::getReply(buff, 50);    //TODO: we're not validating the reply here. Perhaps check to see if a valid reply came back    
     
     return retVal;
 }

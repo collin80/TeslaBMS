@@ -10,12 +10,15 @@
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 
+/*Misc notes:
+Loglevel does not persist in EEPROM. Fix that
+Getting an invalid response to module data around 26 times per minute. Happens randomly.
+*/
+
 BMSModuleManager bms;
 EEPROMSettings settings;
 SerialConsole console;
 uint32_t lastUpdate;
-
-//At 69F/20.5C the ratio is 0.1356
 
 //This code only applicable to Due to fixup lack of functionality in the arduino core.
 #if defined (__arm__) && defined (__SAM3X8E__)
@@ -97,10 +100,12 @@ void setup()
 
     SERIALCONSOLE.println("Started serial interface to BMS.");
     
+    pinMode(13, INPUT);
+    
     loadSettings();
     initializeCAN();
     
-    bms.findBoards();
+    bms.renumberBoardIDs();
     
     //Logger::setLoglevel(Logger::Debug);
     
