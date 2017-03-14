@@ -16,7 +16,6 @@ BMSModuleManager::BMSModuleManager()
     lowestPackTemp = 200.0f;
     highestPackTemp = -100.0f;
     isFaulted = false;
-
 }
 
 void BMSModuleManager::balanceCells()
@@ -86,6 +85,7 @@ void BMSModuleManager::setupBoards()
 {
     uint8_t payload[3];
     uint8_t buff[10];
+    int retLen;
 
     payload[0] = 0;
     payload[1] = 0;
@@ -96,9 +96,8 @@ void BMSModuleManager::setupBoards()
         payload[0] = 0;
         payload[1] = 0;
         payload[2] = 1;
-        BMSUtil::sendData(payload, 3, false);
-        delay(3);
-        if (BMSUtil::getReply(buff, 10) > 2)
+        retLen = BMSUtil::sendDataWithReply(payload, 3, false, buff, 4);
+        if (retLen == 4)
         {
             if (buff[0] == 0x80 && buff[1] == 0 && buff[2] == 1)
             {
@@ -128,6 +127,7 @@ void BMSModuleManager::setupBoards()
             }
             else break; //nobody responded properly to the zero address so our work here is done.
         }
+        else break;
     }
 }
 
@@ -168,22 +168,29 @@ void BMSModuleManager::findBoards()
 */
 void BMSModuleManager::renumberBoardIDs()
 {
-  uint8_t payload[3];
-  uint8_t buff[8];
-  
+    uint8_t payload[3];
+    uint8_t buff[8];
+    int attempts = 1;
+
     for (int y = 1; y < 63; y++) 
     {
         modules[y].setExists(false);  
         numFoundModules = 0;
+    }    
+    
+    while (attempts < 3)
+    {
+        payload[0] = 0x3F << 1; //broadcast the reset command
+        payload[1] = 0x3C;//reset
+        payload[2] = 0xA5;//data to cause a reset
+        BMSUtil::sendData(payload, 3, true);
+        delay(100);
+        BMSUtil::getReply(buff, 8);
+        if (buff[0] == 0x7F && buff[1] == 0x3C && buff[2] == 0xA5 && buff[3] == 0x57) break;
+        attempts++;
     }
- 
-  payload[0] = 0x3F << 1; //broadcast the reset command
-  payload[1] = 0x3C;//reset
-  payload[2] = 0xA5;//data to cause a reset
-  BMSUtil::sendData(payload, 3, true);
-  delay(200);
-  BMSUtil::getReply(buff, 8);  
-  setupBoards();    //then assign them all consecutive addresses in order
+    
+    setupBoards();
 }
 
 /*
@@ -191,33 +198,33 @@ After a RESET boards have their faults written due to the hard restart or first 
 */
 void BMSModuleManager::clearFaults()
 {
-  uint8_t payload[3];
-  uint8_t buff[8];
-  payload[0] = 0x7F; //broadcast
-  payload[1] = REG_ALERT_STATUS;//Alert Status
-  payload[2] = 0xFF;//data to cause a reset
-  BMSUtil::sendData(payload, 3, true);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
-  payload[0] = 0x7F; //broadcast
-  payload[2] = 0x00;//data to clear
-  BMSUtil::sendData(payload, 3, true);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
+    uint8_t payload[3];
+    uint8_t buff[8];
+    payload[0] = 0x7F; //broadcast
+    payload[1] = REG_ALERT_STATUS;//Alert Status
+    payload[2] = 0xFF;//data to cause a reset
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);
+    BMSUtil::getReply(buff, 8);
+    payload[0] = 0x7F; //broadcast
+    payload[2] = 0x00;//data to clear
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);
+    BMSUtil::getReply(buff, 8);
   
-  payload[0] = 0x7F; //broadcast
-  payload[1] = REG_FAULT_STATUS;//Fault Status
-  payload[2] = 0xFF;//data to cause a reset
-  BMSUtil::sendData(payload, 3, true);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
-  payload[0] = 0x7F; //broadcast
-  payload[2] = 0x00;//data to clear
-  BMSUtil::sendData(payload, 3, true);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
+    payload[0] = 0x7F; //broadcast
+    payload[1] = REG_FAULT_STATUS;//Fault Status
+    payload[2] = 0xFF;//data to cause a reset
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);
+    BMSUtil::getReply(buff, 8);
+    payload[0] = 0x7F; //broadcast
+    payload[2] = 0x00;//data to clear
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);
+    BMSUtil::getReply(buff, 8);
   
-  isFaulted = false;
+    isFaulted = false;
 }
 
 /*
@@ -227,14 +234,14 @@ Pulling the boards out of sleep only to check voltage decay and temperature when
 
 void BMSModuleManager::sleepBoards()
 {
-  uint8_t payload[3];
-  uint8_t buff[8];
-  payload[0] = 0x7F; //broadcast
-  payload[1] = REG_IO_CTRL;//IO ctrl start
-  payload[2] = 0x04;//write sleep bit
-  BMSUtil::sendData(payload, 3, true);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
+    uint8_t payload[3];
+    uint8_t buff[8];
+    payload[0] = 0x7F; //broadcast
+    payload[1] = REG_IO_CTRL;//IO ctrl start
+    payload[2] = 0x04;//write sleep bit
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);
+    BMSUtil::getReply(buff, 8);
 }
 
 /*
@@ -243,26 +250,26 @@ Wakes all the boards up and clears thier SLEEP state bit in the Alert Status Reg
 
 void BMSModuleManager::wakeBoards()
 {
-  uint8_t payload[3];
-  uint8_t buff[8];
-  payload[0] = 0x7F; //broadcast
-  payload[1] = REG_IO_CTRL;//IO ctrl start
-  payload[2] = 0x00;//write sleep bit
-  BMSUtil::sendData(payload, 3, true);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
+    uint8_t payload[3];
+    uint8_t buff[8];
+    payload[0] = 0x7F; //broadcast
+    payload[1] = REG_IO_CTRL;//IO ctrl start
+    payload[2] = 0x00;//write sleep bit
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);
+    BMSUtil::getReply(buff, 8);
   
-  payload[0] = 0x7F; //broadcast
-  payload[1] = REG_ALERT_STATUS;//Fault Status
-  payload[2] = 0x04;//data to cause a reset
-  BMSUtil::sendData(payload, 3, true);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
-  payload[0] = 0x7F; //broadcast
-  payload[2] = 0x00;//data to clear
-  BMSUtil::sendData(payload, 3, true);
-  delay(2);
-  BMSUtil::getReply(buff, 8);
+    payload[0] = 0x7F; //broadcast
+    payload[1] = REG_ALERT_STATUS;//Fault Status
+    payload[2] = 0x04;//data to cause a reset
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);
+    BMSUtil::getReply(buff, 8);
+    payload[0] = 0x7F; //broadcast
+    payload[2] = 0x00;//data to clear
+    BMSUtil::sendData(payload, 3, true);
+    delay(2);
+    BMSUtil::getReply(buff, 8);
 }
 
 void BMSModuleManager::getAllVoltTemp()
