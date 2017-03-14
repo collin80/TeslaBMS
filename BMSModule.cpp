@@ -132,19 +132,17 @@ bool BMSModule::readModuleValues()
                 if (highestCellVolt[i] < cellVolt[i]) highestCellVolt[i] = cellVolt[i];
             }
             
-            tempTemp = (1.78f / ((buff[17] * 256 + buff[18] + 2) / 33046.0f) - 5.34f);
-            //these lines implement a third order approximation of the resistance to temperature curve for the thermistor
-            tempCalc = 77.16013459f - (tempTemp * 7.284328039f);
-            tempCalc += 0.239392948f * (tempTemp * tempTemp);
-            tempCalc -= .00271619635 * (tempTemp * tempTemp * tempTemp);            
+            //Now using steinhart/hart equation for temperatures. We'll see if it is better than old code.
+            tempTemp = (1.78f / ((buff[17] * 256 + buff[18] + 2) / 33046.0f) - 3.57f);
+            tempTemp *= 1000.0f;
+            tempCalc =  1.0f / (0.0007610373573f + (0.0002728524832 * logf(tempTemp)) + (powf(logf(tempTemp), 3) * 0.0000001022822735f));            
             
-            temperatures[0] = tempCalc;            
+            temperatures[0] = tempCalc - 273.15f;            
             
-            tempTemp = 1.78f / ((buff[19] * 256 + buff[20] + 9) / 33068.0f) - 5.34f;
-            tempCalc = 77.16013459f - (tempTemp * 7.284328039f);
-            tempCalc += 0.239392948f * (tempTemp * tempTemp);
-            tempCalc -= .00271619635 * (tempTemp * tempTemp * tempTemp);            
-            temperatures[1] = tempCalc;
+            tempTemp = 1.78f / ((buff[19] * 256 + buff[20] + 9) / 33068.0f) - 3.57f;
+            tempTemp *= 1000.0f;
+            tempCalc = 1.0f / (0.0007610373573f + (0.0002728524832 * logf(tempTemp)) + (powf(logf(tempTemp), 3) * 0.0000001022822735f));
+            temperatures[1] = tempCalc - 273.15f;
             
             if (getLowTemp() < lowestTemperature) lowestTemperature = getLowTemp();
             if (getHighTemp() > highestTemperature) highestTemperature = getHighTemp();
