@@ -203,26 +203,20 @@ void BMSModuleManager::clearFaults()
     payload[0] = 0x7F; //broadcast
     payload[1] = REG_ALERT_STATUS;//Alert Status
     payload[2] = 0xFF;//data to cause a reset
-    BMSUtil::sendData(payload, 3, true);
-    delay(2);
-    BMSUtil::getReply(buff, 8);
+    BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
+    
     payload[0] = 0x7F; //broadcast
     payload[2] = 0x00;//data to clear
-    BMSUtil::sendData(payload, 3, true);
-    delay(2);
-    BMSUtil::getReply(buff, 8);
+    BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
   
     payload[0] = 0x7F; //broadcast
     payload[1] = REG_FAULT_STATUS;//Fault Status
     payload[2] = 0xFF;//data to cause a reset
-    BMSUtil::sendData(payload, 3, true);
-    delay(2);
-    BMSUtil::getReply(buff, 8);
+    BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
+    
     payload[0] = 0x7F; //broadcast
     payload[2] = 0x00;//data to clear
-    BMSUtil::sendData(payload, 3, true);
-    delay(2);
-    BMSUtil::getReply(buff, 8);
+    BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
   
     isFaulted = false;
 }
