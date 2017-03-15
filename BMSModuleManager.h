@@ -26,7 +26,8 @@ public:
     float getAvgTemperature();
     float getAvgCellVolt();
     void processCANMsg(CAN_FRAME &frame);
-    void printPackStatus();
+    void printPackSummary();
+    void printPackDetails();
 
 private:
     float packVolt;                         // All modules added together

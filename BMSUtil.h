@@ -77,7 +77,8 @@ public:
     }
     
     //Uses above functions to send data then get the response. Will auto retry if response not 
-    //the expected return length
+    //the expected return length. This helps to alleviate any comm issues. The Due cannot exactly
+    //match the correct comm speed so sometimes there are data glitches.
     static int sendDataWithReply(uint8_t *data, uint8_t dataLen, bool isWrite, uint8_t *retData, int retLen)
     {
         int attempts = 1;

@@ -333,7 +333,7 @@ float BMSModuleManager::getAvgCellVolt()
     return avg;    
 }
 
-void BMSModuleManager::printPackStatus()
+void BMSModuleManager::printPackSummary()
 {
     uint8_t faults;
     uint8_t alerts;
@@ -445,6 +445,57 @@ void BMSModuleManager::printPackStatus()
                 }                
             }
             if (faults > 0 || alerts > 0) SerialUSB.println();
+        }
+    }
+}
+
+void BMSModuleManager::printPackDetails()
+{
+    uint8_t faults;
+    uint8_t alerts;
+    uint8_t COV;
+    uint8_t CUV;
+    int cellNum = 0;
+    
+    Logger::console("");
+    Logger::console("");
+    Logger::console("");
+    Logger::console("                                         Pack Status:");
+    if (isFaulted) Logger::console("                                           FAULTED!");
+    else Logger::console("                                      All systems go!");
+    Logger::console("Modules: %i    Voltage: %fV   Avg Cell Voltage: %fV     Avg Temp: %fC ", numFoundModules, 
+                    getPackVoltage(),getAvgCellVolt(), getAvgTemperature());
+    Logger::console("");
+    for (int y = 1; y < 63; y++)
+    {
+        if (modules[y].isExisting())
+        {
+            faults = modules[y].getFaults();
+            alerts = modules[y].getAlerts();
+            COV = modules[y].getCOVCells();
+            CUV = modules[y].getCUVCells();
+            
+            SerialUSB.print("Module #");
+            SerialUSB.print(y);
+            if (y < 10) SerialUSB.print(" ");
+            SerialUSB.print("  ");
+            SerialUSB.print(modules[y].getModuleVoltage());
+            SerialUSB.print("V");
+            for (int i = 0; i < 6; i++)
+            {
+                if (cellNum < 10) SerialUSB.print(" ");
+                SerialUSB.print("  Cell");
+                SerialUSB.print(cellNum++);                
+                SerialUSB.print(": ");
+                SerialUSB.print(modules[y].getCellVoltage(i));
+                SerialUSB.print("V");
+            }   
+            SerialUSB.print("  Neg Term Temp: ");
+            SerialUSB.print(modules[y].getTemperature(0));
+            SerialUSB.print("C  Pos Term Temp: ");
+            SerialUSB.print(modules[y].getTemperature(1)); 
+            SerialUSB.println("C");
+            
         }
     }
 }

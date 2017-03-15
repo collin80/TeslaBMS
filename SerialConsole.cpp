@@ -37,6 +37,7 @@ extern BMSModuleManager bms;
 
 bool printPrettyDisplay;
 uint32_t prettyCounter;
+int whichDisplay;
 
 SerialConsole::SerialConsole() {
     init();
@@ -50,16 +51,18 @@ void SerialConsole::init() {
     cancel=false;
     printPrettyDisplay = false;
     prettyCounter = 0;
+    whichDisplay = 0;
 }
 
 void SerialConsole::loop() {  
     if (SERIALCONSOLE.available()) {
         serialEvent();
     }
-    if (printPrettyDisplay && (millis() > (prettyCounter + 5000)))
+    if (printPrettyDisplay && (millis() > (prettyCounter + 3000)))
     {
         prettyCounter = millis();
-        bms.printPackStatus();
+        if (whichDisplay == 0) bms.printPackSummary();
+        if (whichDisplay == 1) bms.printPackDetails();
     }
 }
               
@@ -76,7 +79,8 @@ void SerialConsole::printMenu() {
     Logger::console("   F = Find all connected boards");
     Logger::console("   R = Renumber connected boards in sequence");
     Logger::console("   B = Attempt balancing for 5 seconds");
-    Logger::console("   p = Toggle output of formatted pack status every 5 seconds");
+    Logger::console("   p = Toggle output of pack summary every 3 seconds");
+    Logger::console("   d = Toggle output of pack details every 3 seconds");
   
     Logger::console("   LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", Logger::getLogLevel());
     Logger::console("   CANSPEED=%i - set first CAN bus speed", settings.canSpeed);
@@ -291,14 +295,34 @@ void SerialConsole::handleShortCmd() {
         bms.balanceCells();
         break;    
     case 'p':
-        printPrettyDisplay = !printPrettyDisplay;
-        if (printPrettyDisplay)
-        {
-            Logger::console("Enabling pack status display, 5 second interval");
-        }
+        if (whichDisplay == 1 && printPrettyDisplay) whichDisplay = 0;
         else
         {
-            Logger::console("No longer displaying pack status.");
+            printPrettyDisplay = !printPrettyDisplay;
+            if (printPrettyDisplay)
+            {
+                Logger::console("Enabling pack summary display, 5 second interval");
+            }
+            else
+            {
+                Logger::console("No longer displaying pack summary.");
+            }
+        }
+        break;
+    case 'd':
+        if (whichDisplay == 0 && printPrettyDisplay) whichDisplay = 1;
+        else
+        {
+            printPrettyDisplay = !printPrettyDisplay;
+            whichDisplay = 1;
+            if (printPrettyDisplay)
+            {
+                Logger::console("Enabling pack details display, 5 second interval");
+            }
+            else
+            {
+                Logger::console("No longer displaying pack details.");
+            }            
         }
         break;
     }
