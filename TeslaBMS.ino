@@ -6,6 +6,7 @@
 #include "Logger.h"
 #include "SerialConsole.h"
 #include "BMSModuleManager.h"
+#include "SystemIO.h"
 #include <due_can.h>
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
@@ -99,6 +100,8 @@ void setup()
     
     loadSettings();
     initializeCAN();
+    
+    systemIO.setup();
     
     bms.renumberBoardIDs();
     

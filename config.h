@@ -35,6 +35,19 @@
 #define EEPROM_VERSION      0x10    //update any time EEPROM struct below is changed.
 #define EEPROM_PAGE         0
 
+#define DIN1                54
+#define DIN2                55
+#define DIN3                56
+#define DIN4                57
+#define DOUT4_H             2
+#define DOUT4_L             3
+#define DOUT3_H             4
+#define DOUT3_L             5
+#define DOUT2_H             6
+#define DOUT2_L             7
+#define DOUT1_H             8
+#define DOUT1_L             9
+
 typedef struct {
     uint8_t version;
     uint8_t checksum;
