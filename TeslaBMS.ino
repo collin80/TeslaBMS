@@ -121,7 +121,8 @@ void loop()
     if (millis() > (lastUpdate + 1000))
     {    
         lastUpdate = millis();
-        bms.getAllVoltTemp();
+        bms.balanceCells();
+        bms.getAllVoltTemp();       
     }
     
     if (Can0.available()) {

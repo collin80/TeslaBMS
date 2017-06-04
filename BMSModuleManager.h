@@ -16,12 +16,7 @@ public:
     void wakeBoards();
     void getAllVoltTemp();
     void readSetpoints();
-    void setBatteryID(int id);
-    void setUnderVolt(float newVal);
-    void setOverVolt(float newVal);
-    void setOverTemp(float newVal);
-    void setBalanceV(float newVal);
-    void setBalanceHyst(float newVal);
+    void setBatteryID();
     float getPackVoltage();
     float getAvgTemperature();
     float getAvgCellVolt();
@@ -36,7 +31,6 @@ private:
     float lowestPackTemp;
     float highestPackTemp;
     BMSModule modules[MAX_MODULE_ADDR + 1]; // store data for as many modules as we've configured for.
-    int batteryID;
     int numFoundModules;                    // The number of modules that seem to exist
     bool isFaulted;
     

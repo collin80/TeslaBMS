@@ -19,56 +19,10 @@ BMSModuleManager::BMSModuleManager()
 }
 
 void BMSModuleManager::balanceCells()
-{
-    uint8_t payload[4];
-    uint8_t buff[30];
-    uint8_t balance = 0;//bit 0 - 5 are to activate cell balancing 1-6
-  
+{  
     for (int address = 1; address <= MAX_MODULE_ADDR; address++)
     {
-        balance = 0;
-        for (int i = 0; i < 6; i++)
-        {
-            if (settings.balanceVoltage < modules[address].getCellVoltage(i))
-            {
-                balance = balance | (1<<i);
-            }
-        }
-  
-        if (balance != 0) //only send balance command when needed
-        {
-            payload[0] = address << 1;
-            payload[1] = REG_BAL_TIME;
-            payload[2] = 0x05; //5 second balance limit, if not triggered to balance it will stop after 5 seconds
-            BMSUtil::sendData(payload, 3, true);
-            delay(2);
-            BMSUtil::getReply(buff, 30);
-
-            payload[0] = address << 1;
-            payload[1] = REG_BAL_CTRL;
-            payload[2] = balance; //write balance state to register
-            BMSUtil::sendData(payload, 3, true);
-            delay(2);
-            BMSUtil::getReply(buff, 30);
-
-            if (Logger::isDebug()) //read registers back out to check if everthing is good
-            {
-                delay(50);
-                payload[0] = address << 1;
-                payload[1] = REG_BAL_TIME;
-                payload[2] = 1; //
-                BMSUtil::sendData(payload, 3, false);
-                delay(2);
-                BMSUtil::getReply(buff, 30);
-         
-                payload[0] = address << 1;
-                payload[1] = REG_BAL_CTRL;
-                payload[2] = 1; //
-                BMSUtil::sendData(payload, 3, false);
-                delay(2);
-                BMSUtil::getReply(buff, 30);
-            }
-        }
+        if (modules[address].isExisting()) modules[address].balanceCells();
     }
 }
 
@@ -90,7 +44,7 @@ void BMSModuleManager::setupBoards()
     payload[0] = 0;
     payload[1] = 0;
     payload[2] = 1;
-    
+
     while (1 == 1)
     {
         payload[0] = 0;
@@ -174,10 +128,10 @@ void BMSModuleManager::renumberBoardIDs()
 
     for (int y = 1; y < 63; y++) 
     {
-        modules[y].setExists(false);  
+        modules[y].setExists(false);
         numFoundModules = 0;
-    }    
-    
+    }
+
     while (attempts < 3)
     {
         payload[0] = 0x3F << 1; //broadcast the reset command
@@ -189,7 +143,7 @@ void BMSModuleManager::renumberBoardIDs()
         if (buff[0] == 0x7F && buff[1] == 0x3C && buff[2] == 0xA5 && buff[3] == 0x57) break;
         attempts++;
     }
-    
+
     setupBoards();
 }
 
@@ -204,20 +158,20 @@ void BMSModuleManager::clearFaults()
     payload[1] = REG_ALERT_STATUS;//Alert Status
     payload[2] = 0xFF;//data to cause a reset
     BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
-    
+
     payload[0] = 0x7F; //broadcast
     payload[2] = 0x00;//data to clear
     BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
-  
+
     payload[0] = 0x7F; //broadcast
     payload[1] = REG_FAULT_STATUS;//Fault Status
     payload[2] = 0xFF;//data to cause a reset
     BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
-    
+
     payload[0] = 0x7F; //broadcast
     payload[2] = 0x00;//data to clear
     BMSUtil::sendDataWithReply(payload, 3, true, buff, 4);
-  
+
     isFaulted = false;
 }
 
@@ -284,10 +238,10 @@ void BMSModuleManager::getAllVoltTemp()
             if (modules[x].getHighTemp() > highestPackTemp) highestPackTemp = modules[x].getHighTemp();            
         }
     }
-    
+
     if (packVolt > highestPackVolt) highestPackVolt = packVolt;
     if (packVolt < lowestPackVolt) lowestPackVolt = packVolt;
-    
+
     if (digitalRead(13) == LOW) {
         if (!isFaulted) Logger::error("One or more BMS modules have entered the fault state!");
         isFaulted = true;
@@ -304,11 +258,6 @@ float BMSModuleManager::getPackVoltage()
     return packVolt;
 }
 
-void BMSModuleManager::setBatteryID(int id)
-{
-    batteryID = id;
-}
-
 float BMSModuleManager::getAvgTemperature()
 {
     float avg = 0.0f;    
@@ -317,7 +266,7 @@ float BMSModuleManager::getAvgTemperature()
         if (modules[x].isExisting()) avg += modules[x].getAvgTemp();
     }
     avg = avg / (float)numFoundModules;
-    
+
     return avg;
 }
 
@@ -329,8 +278,8 @@ float BMSModuleManager::getAvgCellVolt()
         if (modules[x].isExisting()) avg += modules[x].getAverageV();
     }
     avg = avg / (float)numFoundModules;
-    
-    return avg;    
+
+    return avg;
 }
 
 void BMSModuleManager::printPackSummary()
@@ -339,7 +288,7 @@ void BMSModuleManager::printPackSummary()
     uint8_t alerts;
     uint8_t COV;
     uint8_t CUV;
-    
+
     Logger::console("");
     Logger::console("");
     Logger::console("");
@@ -357,11 +306,23 @@ void BMSModuleManager::printPackSummary()
             alerts = modules[y].getAlerts();
             COV = modules[y].getCOVCells();
             CUV = modules[y].getCUVCells();
-            
+
             Logger::console("                               Module #%i", y);
-            
+
             Logger::console("  Voltage: %fV   (%fV-%fV)     Temperatures: (%fC-%fC)", modules[y].getModuleVoltage(), 
                             modules[y].getLowCellV(), modules[y].getHighCellV(), modules[y].getLowTemp(), modules[y].getHighTemp());
+
+            SerialUSB.print("  Currently balancing cells: ");
+            for (int i = 0; i < 6; i++)
+            {                
+                if (modules[y].getBalancingState(i) == 1) 
+                {                    
+                    SerialUSB.print(i);
+                    SerialUSB.print(" ");
+                }
+            }
+            SerialUSB.println();
+
             if (faults > 0)
             {
                 Logger::console("  MODULE IS FAULTED:");
@@ -442,7 +403,7 @@ void BMSModuleManager::printPackSummary()
                 if (alerts & 0x80)
                 {
                     Logger::console("    Address not registered");
-                }                
+                }
             }
             if (faults > 0 || alerts > 0) SerialUSB.println();
         }
@@ -456,7 +417,7 @@ void BMSModuleManager::printPackDetails()
     uint8_t COV;
     uint8_t CUV;
     int cellNum = 0;
-    
+
     Logger::console("");
     Logger::console("");
     Logger::console("");
@@ -474,7 +435,7 @@ void BMSModuleManager::printPackDetails()
             alerts = modules[y].getAlerts();
             COV = modules[y].getCOVCells();
             CUV = modules[y].getCUVCells();
-            
+
             SerialUSB.print("Module #");
             SerialUSB.print(y);
             if (y < 10) SerialUSB.print(" ");
@@ -485,17 +446,18 @@ void BMSModuleManager::printPackDetails()
             {
                 if (cellNum < 10) SerialUSB.print(" ");
                 SerialUSB.print("  Cell");
-                SerialUSB.print(cellNum++);                
+                SerialUSB.print(cellNum++);
                 SerialUSB.print(": ");
                 SerialUSB.print(modules[y].getCellVoltage(i));
                 SerialUSB.print("V");
-            }   
+                if (modules[y].getBalancingState(i) == 1) SerialUSB.print("*");
+                else SerialUSB.print(" ");
+            }
             SerialUSB.print("  Neg Term Temp: ");
             SerialUSB.print(modules[y].getTemperature(0));
             SerialUSB.print("C  Pos Term Temp: ");
             SerialUSB.print(modules[y].getTemperature(1)); 
             SerialUSB.println("C");
-            
         }
     }
 }
@@ -531,7 +493,7 @@ void BMSModuleManager::processCANMsg(CAN_FRAME &frame)
 void BMSModuleManager::sendBatterySummary()
 {
     CAN_FRAME outgoing;
-    outgoing.id = (0x1BA00000ul) + ((batteryID & 0xF) << 16) + 0xFFFF;
+    outgoing.id = (0x1BA00000ul) + ((settings.batteryID & 0xF) << 16) + 0xFFFF;
     outgoing.rtr = 0;
     outgoing.priority = 1;
     outgoing.extended = true;
@@ -550,7 +512,7 @@ void BMSModuleManager::sendBatterySummary()
     if (avgTemp < 0) avgTemp = 0;    
     outgoing.data.byte[6] = avgTemp;
     avgTemp = (int)highestPackTemp + 40;
-    if (avgTemp < 0) avgTemp = 0;        
+    if (avgTemp < 0) avgTemp = 0;
     outgoing.data.byte[7] = avgTemp;
     Can0.sendFrame(outgoing);
 }
@@ -558,7 +520,7 @@ void BMSModuleManager::sendBatterySummary()
 void BMSModuleManager::sendModuleSummary(int module)
 {
     CAN_FRAME outgoing;
-    outgoing.id = (0x1BA00000ul) + ((batteryID & 0xF) << 16) + ((module & 0xFF) << 8) + 0xFF;
+    outgoing.id = (0x1BA00000ul) + ((settings.batteryID & 0xF) << 16) + ((module & 0xFF) << 8) + 0xFF;
     outgoing.rtr = 0;
     outgoing.priority = 1;
     outgoing.extended = true;
@@ -577,21 +539,21 @@ void BMSModuleManager::sendModuleSummary(int module)
     if (avgTemp < 0) avgTemp = 0;
     outgoing.data.byte[6] = avgTemp;
     avgTemp = (int)modules[module].getHighestTemp() + 40;
-    if (avgTemp < 0) avgTemp = 0;    
+    if (avgTemp < 0) avgTemp = 0;
     outgoing.data.byte[7] = avgTemp;
 
-    Can0.sendFrame(outgoing);    
+    Can0.sendFrame(outgoing);
 }
 
 void BMSModuleManager::sendCellDetails(int module, int cell)
 {
     CAN_FRAME outgoing;
-    outgoing.id = (0x1BA00000ul) + ((batteryID & 0xF) << 16) + ((module & 0xFF) << 8) + (cell & 0xFF);
+    outgoing.id = (0x1BA00000ul) + ((settings.batteryID & 0xF) << 16) + ((module & 0xFF) << 8) + (cell & 0xFF);
     outgoing.rtr = 0;
     outgoing.priority = 1;
     outgoing.extended = true;
     outgoing.length = 8;
-    
+
     uint16_t battV = uint16_t(modules[module].getCellVoltage(cell) * 100.0f);
     outgoing.data.byte[0] = battV & 0xFF;
     outgoing.data.byte[1] = battV >> 8;
@@ -604,6 +566,16 @@ void BMSModuleManager::sendCellDetails(int module, int cell)
     int instTemp = modules[module].getHighTemp() + 40;
     outgoing.data.byte[6] = instTemp; // should be nearest temperature reading not highest but this works too.
     outgoing.data.byte[7] = 0; //Bit encoded fault data. No definitions for this yet.
-    
+
     Can0.sendFrame(outgoing);
 }
+
+//The SerialConsole actually sets the battery ID to a specific value. We just have to set up the CAN filter here to
+//match.
+void BMSModuleManager::setBatteryID()
+{
+    //Setup filter for direct access to our registered battery ID
+    uint32_t canID = (0xBAul << 20) + (((uint32_t)settings.batteryID & 0xF) << 16);
+    Can0.setRXFilter(0, canID, 0x1FFF0000ul, true);
+}
+

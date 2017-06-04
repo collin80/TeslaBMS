@@ -65,7 +65,7 @@ void SerialConsole::loop() {
         if (whichDisplay == 1) bms.printPackDetails();
     }
 }
-              
+
 void SerialConsole::printMenu() {   
     Logger::console("\n*************SYSTEM MENU *****************");
     Logger::console("Enable line endings of some sort (LF, CR, CRLF)");
@@ -81,19 +81,19 @@ void SerialConsole::printMenu() {
     Logger::console("   B = Attempt balancing for 5 seconds");
     Logger::console("   p = Toggle output of pack summary every 3 seconds");
     Logger::console("   d = Toggle output of pack details every 3 seconds");
-  
+
     Logger::console("   LOGLEVEL=%i - set log level (0=debug, 1=info, 2=warn, 3=error, 4=off)", Logger::getLogLevel());
     Logger::console("   CANSPEED=%i - set first CAN bus speed", settings.canSpeed);
     Logger::console("   BATTERYID=%i - Set battery ID for CAN protocol (1-14)", settings.batteryID);
-    
+
     Logger::console("\nBATTERY MANAGEMENT CONTROLS\n");
     Logger::console("   VOLTLIMHI=%f - High limit for cells in volts", settings.OverVSetpoint);
     Logger::console("   VOLTLIMLO=%f - Low limit for cells in volts", settings.UnderVSetpoint);
     Logger::console("   TEMPLIMHI=%f - High limit for cell temperature in degrees C", settings.OverTSetpoint);
     Logger::console("   TEMPLIMLO=%f - Low limit for cell temperature in degrees C", settings.UnderTSetpoint);
     Logger::console("   BALVOLT=%f - Voltage at which to begin cell balancing", settings.balanceVoltage);
-    Logger::console("   BALHYST=%f - Voltage difference between highest and lowest cell that will cause balancing", settings.balanceHyst);
-    
+    Logger::console("   BALHYST=%f - How far voltage must dip before balancing is turned off", settings.balanceHyst);
+
     float OverVSetpoint;
     float UnderVSetpoint;
     float OverTSetpoint;
@@ -167,7 +167,7 @@ void SerialConsole::handleConfigCmd() {
     newFloat = strtof((char *) (cmdBuffer + i), NULL);
 
     cmdString.toUpperCase();
-    
+
     if (cmdString == String("CANSPEED")) {
         if (newValue >= 33000 && newValue <= 1000000) {
             settings.canSpeed = newValue;
@@ -207,10 +207,11 @@ void SerialConsole::handleConfigCmd() {
     } else if (cmdString == String("BATTERYID")) {
         if (newValue > 0 && newValue < 15) {
             settings.batteryID = newValue;
+            bms.setBatteryID();
             needEEPROMWrite = true;
             Logger::console("Battery ID set to: %i", newValue);
         }
-        else Logger::console("Invalid battery ID. Please enter a value between 1 and 14");                    
+        else Logger::console("Invalid battery ID. Please enter a value between 1 and 14");
     } else if (cmdString == String("VOLTLIMHI")) {
         if (newFloat >= 0.0f && newFloat <= 6.00f) {
             settings.OverVSetpoint = newFloat; 
@@ -255,8 +256,7 @@ void SerialConsole::handleConfigCmd() {
         else Logger::console("Invalid temperature lower limit please enter a value between -20.0 and 120.0");        
     } else {
         Logger::console("Unknown command");
-    } 
-    
+    }
     if (needEEPROMWrite)
     {
         EEPROM.write(EEPROM_PAGE, settings);
@@ -293,7 +293,7 @@ void SerialConsole::handleShortCmd() {
         break;
     case 'B':
         bms.balanceCells();
-        break;    
+        break;
     case 'p':
         if (whichDisplay == 1 && printPrettyDisplay) whichDisplay = 0;
         else
@@ -322,7 +322,7 @@ void SerialConsole::handleShortCmd() {
             else
             {
                 Logger::console("No longer displaying pack details.");
-            }            
+            }
         }
         break;
     }
@@ -330,7 +330,7 @@ void SerialConsole::handleShortCmd() {
 
 /*
     if (SERIALCONSOLE.available()) 
-    {     
+    {
         char y = SERIALCONSOLE.read();
         switch (y)
         {
@@ -366,7 +366,7 @@ void SerialConsole::handleShortCmd() {
        SERIALCONSOLE.println(UVolt);
        SERIALCONSOLE.println(Tset);
       break; 
-                
+
       case '0': //Send all boards into Sleep state
        Serial.println();
        Serial.println("Sleep Mode");
@@ -377,11 +377,7 @@ void SerialConsole::handleShortCmd() {
        Serial.println();
        Serial.println("Wake Boards");
        wakeBoards();
-      break;          
-                      
+      break;
         }
-    }     
+    }
  */
-
-
-

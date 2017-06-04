@@ -29,17 +29,20 @@ public:
     int getAddress();
     bool isExisting();
     void setExists(bool ex);
+    void balanceCells();
+    uint8_t getBalancingState(int cell);
 
 private:
     float cellVolt[6];          // calculated as 16 bit value * 6.250 / 16383 = volts
     float lowestCellVolt[6];
     float highestCellVolt[6];
     float moduleVolt;          // calculated as 16 bit value * 33.333 / 16383 = volts
-    float temperatures[2];     // Don't know the proper scaling at this point
+    float temperatures[2];     // Don't know the proper scaling at this point    
     float lowestTemperature;
     float highestTemperature;
     float lowestModuleVolt;
     float highestModuleVolt;
+    uint8_t balanceState[6]; //0 = balancing off for this cell, 1 = balancing currently on
     bool exists;
     int alerts;
     int faults;

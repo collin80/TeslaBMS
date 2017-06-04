@@ -35,7 +35,7 @@ void SystemIO::setOutput(int pin, OUTPUTSTATE state)
     //first set it floating
     digitalWrite(DigitalOutputs[pin][0], LOW);
     digitalWrite(DigitalOutputs[pin][1], LOW);
-    delayMicroseconds(50); //give mosfets some time to turn off
+    delayMicroseconds(10); //give mosfets some time to turn off
     if (state == HIGH_12V) digitalWrite(DigitalOutputs[pin][1], HIGH);
     if (state == GND) digitalWrite(DigitalOutputs[pin][0], HIGH);
 }
