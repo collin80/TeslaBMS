@@ -95,36 +95,36 @@ void setup()
 #endif
 
     SERIALCONSOLE.println("Started serial interface to BMS.");
-    
+
     pinMode(13, INPUT);
-    
+
     loadSettings();
     initializeCAN();
-    
+
     systemIO.setup();
-    
+
     bms.renumberBoardIDs();
-    
+
     //Logger::setLoglevel(Logger::Debug);
-    
+
     lastUpdate = 0;
-    
+
     bms.clearFaults();
 }
 
 void loop() 
-{    
+{
     CAN_FRAME incoming;
-    
+
     console.loop();
-        
+
     if (millis() > (lastUpdate + 1000))
     {    
         lastUpdate = millis();
         bms.balanceCells();
-        bms.getAllVoltTemp();       
+        bms.getAllVoltTemp();
     }
-    
+
     if (Can0.available()) {
         Can0.read(incoming);
         bms.processCANMsg(incoming);
