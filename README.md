@@ -1,5 +1,5 @@
-Arduino compatible project to interface with the BMS board
-on Tesla Model S modules.
+Arduino compatible project to interface with the BMS slave 
+board on Tesla Model S modules.
 
 The modules are daisy-chained together with a TTL interface.
 The interface uses a Molex 15-97-5101 connector and runs at
