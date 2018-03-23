@@ -11,6 +11,10 @@
 #include <due_wire.h>
 #include <Wire_EEPROM.h>
 
+//#define BMS_BAUD  612500
+#define BMS_BAUD  617647
+//#define BMS_BAUD  608695
+
 BMSModuleManager bms;
 EEPROMSettings settings;
 SerialConsole console;
@@ -89,9 +93,9 @@ void setup()
     delay(4000);  //just for easy debugging. It takes a few seconds for USB to come up properly on most OS's
     SERIALCONSOLE.begin(115200);
     SERIALCONSOLE.println("Starting up!");
-    SERIAL.begin(612500);
+    SERIAL.begin(BMS_BAUD);
 #if defined (__arm__) && defined (__SAM3X8E__)
-    serialSpecialInit(USART0, 612500); //required for Due based boards as the stock core files don't support 612500 baud.
+    serialSpecialInit(USART0, BMS_BAUD); //required for Due based boards as the stock core files don't support 612500 baud.
 #endif
 
     SERIALCONSOLE.println("Started serial interface to BMS.");

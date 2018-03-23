@@ -23,6 +23,8 @@ BMSModule::BMSModule()
     highestModuleVolt = 0.0f;
     exists = false;
     moduleAddress = 0;
+    goodPackets = 0;
+    badPackets = 0;
 }
 
 /*
@@ -150,6 +152,7 @@ bool BMSModule::readModuleValues()
             if (getHighTemp() > highestTemperature) highestTemperature = getHighTemp();
 
             Logger::debug("Got voltage and temperature readings");
+            goodPackets++;
             retVal = true;
         }
     }
@@ -157,7 +160,10 @@ bool BMSModule::readModuleValues()
     {
         Logger::error("Invalid module response received for module %i  len: %i   crc: %i   calc: %i", 
                       moduleAddress, retLen, buff[21], calcCRC);
+        badPackets++;
     }
+
+    Logger::debug("Good RX: %d       Bad RX: %d", goodPackets, badPackets);
 
      //turning the temperature wires off here seems to cause weird temperature glitches
    // payload[1] = REG_IO_CTRL;

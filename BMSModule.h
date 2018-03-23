@@ -48,6 +48,8 @@ private:
     int faults;
     int COVFaults;
     int CUVFaults;
+    int goodPackets;
+    int badPackets;
 
     uint8_t moduleAddress;     //1 to 0x3E
 };
